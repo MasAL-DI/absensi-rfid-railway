@@ -1,0 +1,53 @@
+name: Railway Auto Pause/Resume
+
+on:
+  schedule:
+    # Pause tiap Jumat jam 15:00 WIB (08:00 UTC)
+    - cron: '0 8 * * 5'
+    # Resume tiap Senin jam 06:00 WIB (23:00 UTC hari Minggu)
+    - cron: '0 23 * * 0'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Pilih aksi manual (pause/resume)'
+        required: true
+        default: 'pause'
+        type: choice
+        options:
+          - pause
+          - resume
+
+jobs:
+  pause-resume:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Jalankan Otomatisasi Berdasarkan Jadwal atau Manual
+        run: |
+          SERVICE_ID="${{ secrets.RAILWAY_SERVICE_ID }}"
+          TOKEN="${{ secrets.RAILWAY_API_TOKEN }}"
+          
+          CURRENT_HOUR=$(date +%H)
+          
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ACTION="${{ github.event.inputs.action }}"
+          else
+            if [ "$CURRENT_HOUR" = "08" ]; then
+              ACTION="pause"
+            else
+              ACTION="resume"
+            fi
+          fi
+
+          if [ "$ACTION" = "pause" ]; then
+            echo "📌 Mematikan (Suspending) layanan backend Railway..."
+            curl -X POST https://api.railway.app/graphql \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query":"mutation { serviceInstanceSuspend(id:\"'$SERVICE_ID'\") }"}'
+          else
+            echo "▶️ Menyalakan (Resuming) layanan backend Railway..."
+            curl -X POST https://api.railway.app/graphql \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query":"mutation { serviceInstanceResume(id:\"'$SERVICE_ID'\") }"}'
+          fi
