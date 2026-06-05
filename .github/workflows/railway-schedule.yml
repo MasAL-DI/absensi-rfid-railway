@@ -7,47 +7,26 @@ on:
     # Resume tiap Senin jam 06:00 WIB (23:00 UTC hari Minggu)
     - cron: '0 23 * * 0'
   workflow_dispatch:
-    inputs:
-      action:
-        description: 'Pilih aksi manual (pause/resume)'
-        required: true
-        default: 'pause'
-        type: choice
-        options:
-          - pause
-          - resume
 
 jobs:
   pause-resume:
     runs-on: ubuntu-latest
     steps:
-      - name: Jalankan Otomatisasi Berdasarkan Jadwal atau Manual
+      - name: Pause/Resume Railway Service
         run: |
-          SERVICE_ID="${{ secrets.RAILWAY_SERVICE_ID }}"
-          TOKEN="${{ secrets.RAILWAY_API_TOKEN }}"
+          PROJECT_ID=${{ secrets.RAILWAY_PROJECT_ID }}
+          SERVICE_ID=${{ secrets.RAILWAY_SERVICE_ID }}
           
-          CURRENT_HOUR=$(date +%H)
-          
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            ACTION="${{ github.event.inputs.action }}"
-          else
-            if [ "$CURRENT_HOUR" = "08" ]; then
-              ACTION="pause"
-            else
-              ACTION="resume"
-            fi
-          fi
-
-          if [ "$ACTION" = "pause" ]; then
-            echo "📌 Mematikan (Suspending) layanan backend Railway..."
+          if [[ $(date +%u) -eq 5 ]]; then
+            echo "📌 Pausing service untuk Sabtu-Minggu..."
             curl -X POST https://api.railway.app/graphql \
-              -H "Authorization: Bearer $TOKEN" \
+              -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
               -H "Content-Type: application/json" \
-              -d '{"query":"mutation { serviceSuspend(id:\"'$SERVICE_ID'\") }"}'
+              -d '{"query":"mutation { serviceInstanceUpdate(id:\"'$SERVICE_ID'\", input:{isActive:false}) { id } }"}'
           else
-            echo "▶️ Menyalakan (Resuming) layanan backend Railway..."
+            echo "▶️ Resuming service untuk Senin..."
             curl -X POST https://api.railway.app/graphql \
-              -H "Authorization: Bearer $TOKEN" \
+              -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
               -H "Content-Type: application/json" \
-              -d '{"query":"mutation { serviceResume(id:\"'$SERVICE_ID'\") }"}'
+              -d '{"query":"mutation { serviceInstanceUpdate(id:\"'$SERVICE_ID'\", input:{isActive:true}) { id } }"}'
           fi
