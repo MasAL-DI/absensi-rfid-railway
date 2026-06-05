@@ -43,11 +43,11 @@ jobs:
             curl -X POST https://api.railway.app/graphql \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/json" \
-              -d '{"query":"mutation { serviceInstanceSuspend(id:\"'$SERVICE_ID'\") }"}'
+              -d '{"query":"mutation { serviceSuspend(id:\"'$SERVICE_ID'\") }"}'
           else
             echo "▶️ Menyalakan (Resuming) layanan backend Railway..."
             curl -X POST https://api.railway.app/graphql \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/json" \
-              -d '{"query":"mutation { serviceInstanceResume(id:\"'$SERVICE_ID'\") }"}'
+              -d '{"query":"mutation { serviceResume(id:\"'$SERVICE_ID'\") }"}'
           fi
