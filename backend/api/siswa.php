@@ -1,5 +1,5 @@
 <?php
-require_once '../../backend/config.php';
+require_once '../config.php';
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {

@@ -1,5 +1,5 @@
 <?php
-require_once '../../backend/config.php';
+require_once '../config.php';
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') jsonResponse(['error' => 'Method tidak didukung'], 405);
 cekAuth();
 
