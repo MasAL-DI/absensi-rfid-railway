@@ -1,5 +1,6 @@
 #!/bin/sh
-php-fpm -D -y /usr/local/etc/php-fpm.conf
-sleep 2
+echo "Starting PHP-FPM..."
+php-fpm -D
+sleep 3
 echo "Starting Nginx..."
 nginx -g 'daemon off;'

@@ -388,7 +388,7 @@ async function initApp() {
 }
 
 async function loadKelas() {
-  siswaList = await api('/api/siswa.php') || [];
+  siswaList = await api('/siswa.php') || [];
   const kelas = [...new Set(siswaList.map(s => s.kelas))].sort();
   ['f-kls','r-kls','fs-kls'].forEach(id => {
     const sel = document.getElementById(id);
