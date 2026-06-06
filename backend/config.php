@@ -29,6 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 // ===== END CORS =====
 
+date_default_timezone_set('Asia/Jakarta');
+
 define('DB_HOST',     getenv('MYSQLHOST')     ?: 'localhost');
 define('DB_USER',     getenv('MYSQLUSER')     ?: 'root');
 define('DB_PASSWORD', getenv('MYSQLPASSWORD') ?: '');
