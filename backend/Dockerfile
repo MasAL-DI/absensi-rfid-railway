@@ -15,4 +15,8 @@ RUN chmod +x /start.sh && \
 
 EXPOSE 80
 
+RUN sed -i 's|listen = 127.0.0.1:9000|listen = /var/run/php-fpm.sock|' /usr/local/etc/php-fpm.d/www.conf && \
+    sed -i 's|;listen.owner = nobody|listen.owner = nginx|' /usr/local/etc/php-fpm.d/www.conf && \
+    sed -i 's|;listen.group = nobody|listen.group = nginx|' /usr/local/etc/php-fpm.d/www.conf
+
 CMD ["/start.sh"]
