@@ -10,7 +10,8 @@ COPY start.sh /start.sh
 
 RUN chmod +x /start.sh && \
     mkdir -p /run/nginx && \
-    chown -R www-data:www-data /var/www/html
+    chown -R www-data:www-data /var/www/html && \
+    sed -i 's/listen = 127.0.0.1:9000/listen = 0.0.0.0:9000/' /usr/local/etc/php-fpm.d/www.conf
 
 EXPOSE 80
 
