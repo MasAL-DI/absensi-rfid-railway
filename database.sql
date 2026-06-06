@@ -1,10 +1,3 @@
--- =============================================
--- DATABASE ABSENSI RFID - SMKN 1 PABELAN
--- Versi 2: masuk + pulang + izin keluar sementara
--- =============================================
--- Import: phpMyAdmin > Import > pilih file ini
--- =============================================
-
 CREATE DATABASE IF NOT EXISTS db_absensi
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;

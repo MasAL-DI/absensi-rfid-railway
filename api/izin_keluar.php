@@ -6,7 +6,7 @@
 // POST /api/izin_keluar.php?batalkan <- batalkan izin
 
 
-require_once '../config.php';
+require_once '../../backend/config.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $user   = cekAuth();

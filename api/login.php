@@ -2,7 +2,7 @@
 
 // api/login.php
 
-require_once '../config.php';
+require_once '../../backend/config.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') jsonResponse(['error' => 'Method tidak didukung'], 405);
 

@@ -2,7 +2,7 @@
 
 // api/dashboard.php
 
-require_once '../config.php';
+require_once '../../backend/config.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') jsonResponse(['error' => 'Method tidak didukung'], 405);
 cekAuth();
