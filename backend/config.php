@@ -1,5 +1,30 @@
 <?php
 
+// ===== CORS =====
+$allowedOrigins = [
+    'https://absensi-rfid-railway.vercel.app',
+    'http://localhost',
+    'http://127.0.0.1',
+];
+
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($origin, $allowedOrigins)) {
+    header("Access-Control-Allow-Origin: $origin");
+} else {
+    // Fallback untuk ESP32 / non-browser (tidak ada Origin header)
+    header("Access-Control-Allow-Origin: *");
+}
+
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Credentials: true');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+// ===== END CORS =====
+
 define('DB_HOST',     getenv('MYSQLHOST')     ?: 'localhost');
 define('DB_USER',     getenv('MYSQLUSER')     ?: 'root');
 define('DB_PASSWORD', getenv('MYSQLPASSWORD') ?: '');
