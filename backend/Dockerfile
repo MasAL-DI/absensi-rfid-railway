@@ -7,8 +7,9 @@ RUN apk add --no-cache nginx
 COPY . /var/www/html/
 COPY nginx.conf /etc/nginx/nginx.conf
 
-RUN chown -R www-data:www-data /var/www/html
+RUN mkdir -p /run/nginx && \
+    chown -R www-data:www-data /var/www/html
 
 EXPOSE 80
 
-CMD sh -c "php-fpm -D && nginx -g 'daemon off;'"
+CMD sh -c "php-fpm -D && sleep 2 && nginx -g 'daemon off;'"
