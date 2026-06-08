@@ -171,6 +171,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <button class="tab" onclick="switchTab('absensi',this)">Log Absensi</button>
       <button class="tab" onclick="switchTab('rekap',this)">Rekap Bulanan</button>
       <button class="tab" onclick="switchTab('siswa',this)">Data Siswa</button>
+      <button class="tab" onclick="switchTab('import',this)">📥 Import Data</button>
     </div>
 
     <!-- DASHBOARD -->
@@ -270,6 +271,131 @@ tr:hover td{background:rgba(255,255,255,.02)}
           <thead><tr><th>NIS</th><th>Nama</th><th>Hadir</th><th>Terlambat</th><th>Alpha</th><th>Total Hadir</th><th>Total Pulang</th></tr></thead>
           <tbody id="rekap-tbody"><tr><td colspan="7" class="empty">Pilih kelas dan bulan</td></tr></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- IMPORT DATA -->
+    <div id="tab-import" class="tab-pane">
+      <div class="g2">
+
+        <!-- Kolom kiri: Import Excel -->
+        <div style="display:flex;flex-direction:column;gap:.75rem">
+
+          <!-- Download template -->
+          <div class="card">
+            <div class="ct">⬇️ Langkah 1 — Unduh Template Excel</div>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:.75rem;line-height:1.6">Unduh dulu template Excel-nya. Isi data siswa di sana, lalu upload kembali. Kolom <b>uid_rfid</b> boleh dikosongkan dulu.</p>
+            <button class="btn btn-b" onclick="downloadTemplate()" style="width:100%">⬇️ Unduh Template Excel</button>
+          </div>
+
+          <!-- Upload file -->
+          <div class="card">
+            <div class="ct">📂 Langkah 2 — Upload File Excel / CSV</div>
+            <div id="imp-dropzone" onclick="document.getElementById('imp-file').click()"
+              ondragover="event.preventDefault();this.style.borderColor='var(--green)'"
+              ondragleave="this.style.borderColor='var(--border)'"
+              ondrop="handleImpDrop(event)"
+              style="border:1.5px dashed var(--border);border-radius:8px;padding:1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;background:var(--surface2)">
+              <div style="font-size:28px;margin-bottom:6px">📊</div>
+              <p style="font-size:13px;color:var(--muted)">Klik di sini atau <b>seret file</b> ke area ini</p>
+              <p style="font-size:12px;color:var(--muted);margin-top:4px">Mendukung: .xlsx, .xls, .csv</p>
+            </div>
+            <input type="file" id="imp-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleImpFile(this.files[0])">
+          </div>
+
+          <!-- Kolom mapping -->
+          <div class="card" id="imp-map-card" style="display:none">
+            <div class="ct">🔗 Langkah 3 — Cocokkan Kolom</div>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:.75rem">Jika pakai template, kolom sudah otomatis terdeteksi.</p>
+            <div id="imp-col-map" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+          </div>
+
+          <!-- Preview -->
+          <div class="card" id="imp-preview-card" style="display:none">
+            <div class="ct">👁️ Preview Data <span id="imp-count" style="margin-left:auto;font-size:12px;font-weight:400"></span></div>
+            <div style="overflow:auto;max-height:200px;border:1px solid var(--border);border-radius:6px">
+              <table style="width:100%;border-collapse:collapse;font-size:12px" id="imp-preview-tbl"></table>
+            </div>
+          </div>
+
+          <!-- Tombol import -->
+          <div id="imp-action-card" style="display:none;flex-direction:column;gap:8px">
+            <div id="imp-msg-ok"  class="msg-ok"></div>
+            <div id="imp-msg-err" class="msg-err"></div>
+            <div id="imp-prog-wrap" style="display:none">
+              <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+                <div id="imp-prog-fill" style="height:100%;background:var(--green);border-radius:3px;transition:width .3s;width:0%"></div>
+              </div>
+              <p id="imp-prog-lbl" style="font-size:12px;color:var(--muted);margin-top:4px;text-align:center"></p>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-g" onclick="doImport()" style="flex:1">🚀 Import Semua Data Siswa</button>
+              <button class="btn" onclick="resetImport()">Batal</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Kolom kanan: Scan RFID -->
+        <div style="display:flex;flex-direction:column;gap:.75rem">
+
+          <div class="card">
+            <div class="ct"><span id="rfid-pulse" style="width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:2px"></span> Scan UID RFID per Siswa</div>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:.75rem;line-height:1.6">Pilih siswa dari daftar → tap kartu RFID ke reader USB → klik Simpan. Reader RFID USB otomatis mengirim UID seperti keyboard.</p>
+
+            <!-- Cari siswa -->
+            <div style="margin-bottom:8px">
+              <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:4px">Cari Siswa</label>
+              <div style="display:flex;gap:6px">
+                <input id="rfid-cari" type="text" placeholder="Ketik nama atau NIS..." oninput="filterRfidSiswa()"
+                  style="flex:1;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit">
+                <button class="btn btn-b" onclick="muatSiswaRfid()" style="white-space:nowrap;font-size:12px">🔄 Muat</button>
+              </div>
+            </div>
+
+            <!-- Daftar siswa scroll -->
+            <div id="rfid-siswa-list" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:10px;border:1px solid var(--border);border-radius:6px;padding:6px">
+              <p style="font-size:13px;color:var(--muted);text-align:center;padding:.5rem">Klik tombol Muat untuk tampilkan daftar siswa</p>
+            </div>
+
+            <!-- Display UID -->
+            <div id="rfid-display"
+              style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500;text-align:center;padding:1rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--muted);letter-spacing:.12em;min-height:70px;display:flex;align-items:center;justify-content:center;margin-bottom:8px">
+              Pilih siswa dulu
+            </div>
+
+            <!-- Input manual -->
+            <div style="margin-bottom:8px">
+              <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:4px">Atau Ketik / Paste UID Manual</label>
+              <div style="display:flex;gap:6px">
+                <input id="rfid-manual" type="text" placeholder="Contoh: A1B2C3D4"
+                  style="flex:1;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace">
+                <button class="btn btn-b" onclick="pakaiUIDManual()" style="font-size:12px">Pakai</button>
+              </div>
+            </div>
+
+            <div id="rfid-msg-ok"  class="msg-ok"></div>
+            <div id="rfid-msg-err" class="msg-err"></div>
+            <button id="rfid-btn-simpan" class="btn btn-g" onclick="simpanUID()" style="width:100%;display:none">💾 Simpan UID ke Siswa Ini</button>
+          </div>
+
+          <!-- Panduan singkat -->
+          <div class="card">
+            <div class="ct">📖 Panduan Cepat</div>
+            <div style="font-size:13px;color:var(--muted);line-height:1.8">
+              <b style="color:var(--text)">Import Excel:</b><br>
+              1. Unduh template → isi data siswa<br>
+              2. Upload file → klik Import<br><br>
+              <b style="color:var(--text)">Daftarkan kartu RFID:</b><br>
+              1. Klik "Muat" untuk tampilkan siswa<br>
+              2. Klik nama siswa<br>
+              3. Tap kartu ke reader USB<br>
+              4. Klik "Simpan UID"<br><br>
+              <b style="color:var(--amber)">💡 Tips:</b> Tidak punya reader USB? Catat UID dari Serial Monitor ESP32, lalu paste ke kolom manual.
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
 
@@ -407,7 +533,7 @@ function switchTab(name, btn) {
   if (name === 'izin')    { loadIzin(); }
   if (name === 'siswa')   { loadSiswa(); }
   if (name === 'absensi') { loadAbsensi(); }
-}
+  if (name === 'import')  { muatSiswaRfid(); }
 
 // ===== DASHBOARD =====
 async function loadDashboard() {
@@ -634,8 +760,288 @@ function showErr(id, msg) { const el=document.getElementById(id); el.textContent
 function showOkMsg(id, msg) { const el=document.getElementById(id); el.textContent=msg; el.style.display='block'; setTimeout(()=>el.style.display='none',4000); }
 function showErrMsg(id, msg) { const el=document.getElementById(id); el.textContent=msg; el.style.display='block'; setTimeout(()=>el.style.display='none',4000); }
 
-// Auto login
-if (token) {
+// ===== IMPORT DATA =====
+// Muat SheetJS untuk baca Excel
+(function(){
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+  document.head.appendChild(s);
+})();
+
+const IMP_FIELDS = {
+  nis:      { label: 'NIS *',             wajib: true  },
+  nama:     { label: 'Nama Lengkap *',    wajib: true  },
+  kelas:    { label: 'Kelas *',           wajib: true  },
+  jk:       { label: 'Jenis Kelamin (L/P)', wajib: false },
+  hp_ortu:  { label: 'HP Orang Tua',     wajib: false },
+  uid_rfid: { label: 'UID RFID',         wajib: false }
+};
+
+let impRows = [], impHeaders = [], impColMap = {};
+
+function downloadTemplate() {
+  if (typeof XLSX === 'undefined') return alert('Library Excel belum siap, tunggu sebentar lalu coba lagi.');
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['nis','nama','kelas','jk','hp_ortu','uid_rfid'],
+    ['2024001','Budi Santoso','X-A','L','08123456789',''],
+    ['2024002','Siti Rahayu','X-B','P','08234567890','']
+  ]);
+  ws['!cols'] = [{wch:12},{wch:25},{wch:8},{wch:6},{wch:16},{wch:14}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'DataSiswa');
+  XLSX.writeFile(wb, 'template_data_siswa.xlsx');
+}
+
+function handleImpDrop(e) {
+  e.preventDefault();
+  document.getElementById('imp-dropzone').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file) handleImpFile(file);
+}
+
+function handleImpFile(file) {
+  if (!file) return;
+  const isCsv = file.name.toLowerCase().endsWith('.csv');
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      let json;
+      if (isCsv) {
+        const text = e.target.result;
+        const lines = text.trim().split(/\r?\n/);
+        json = lines.map(l => l.split(',').map(c => c.replace(/^"|"$/g,'').trim()));
+      } else {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, {type:'array'});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        json = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      }
+      if (json.length < 2) { showImpErr('File kosong atau tidak ada data siswa'); return; }
+      impHeaders = json[0].map(h => String(h).trim().toLowerCase());
+      impRows = json.slice(1).filter(r => r.some(c => String(c).trim() !== ''));
+      impAutoMap();
+      renderImpColMap();
+      renderImpPreview();
+      document.getElementById('imp-map-card').style.display     = 'block';
+      document.getElementById('imp-preview-card').style.display = 'block';
+      document.getElementById('imp-action-card').style.display  = 'flex';
+      document.getElementById('imp-dropzone').style.background  = 'var(--green-d)';
+      document.getElementById('imp-dropzone').querySelector('p').textContent = '✓ File dimuat: ' + file.name;
+    } catch(err) { showImpErr('Gagal membaca file: ' + err.message); }
+  };
+  if (isCsv) reader.readAsText(file); else reader.readAsArrayBuffer(file);
+}
+
+function impAutoMap() {
+  impColMap = {};
+  const alias = {
+    nis:      ['nis','no induk','nisn','nomor induk'],
+    nama:     ['nama','name','nama lengkap','nama siswa'],
+    kelas:    ['kelas','class','tingkat'],
+    jk:       ['jk','jenis kelamin','gender','kelamin'],
+    hp_ortu:  ['hp','hp_ortu','no hp','telepon','hp orang tua','nomor hp'],
+    uid_rfid: ['uid','uid_rfid','rfid','kartu','no kartu','uid kartu']
+  };
+  Object.entries(alias).forEach(([field, words]) => {
+    const idx = impHeaders.findIndex(h => words.some(w => h.includes(w)));
+    if (idx >= 0) impColMap[field] = idx;
+  });
+}
+
+function renderImpColMap() {
+  const el = document.getElementById('imp-col-map');
+  el.innerHTML = Object.entries(IMP_FIELDS).map(([field, cfg]) => `
+    <div>
+      <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:3px">${cfg.label}</label>
+      <select style="width:100%;padding:6px 8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:inherit"
+        onchange="impColMap['${field}']=this.value===''?undefined:parseInt(this.value);renderImpPreview()">
+        <option value="">— tidak ada —</option>
+        ${impHeaders.map((h,i) => `<option value="${i}" ${impColMap[field]===i?'selected':''}>${h}</option>`).join('')}
+      </select>
+    </div>`).join('');
+}
+
+function renderImpPreview() {
+  const fields = Object.keys(IMP_FIELDS);
+  const rows   = impRows.slice(0, 5);
+  document.getElementById('imp-count').textContent = impRows.length + ' baris data';
+  document.getElementById('imp-preview-tbl').innerHTML = `
+    <thead style="position:sticky;top:0">
+      <tr>${fields.map(f => `<th style="padding:5px 8px;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:var(--surface);white-space:nowrap">${IMP_FIELDS[f].label.replace(' *','')}</th>`).join('')}</tr>
+    </thead>
+    <tbody>
+      ${rows.map(r => `<tr>${fields.map(f => {
+        const v = impColMap[f] !== undefined ? String(r[impColMap[f]] || '') : '';
+        const kosong = !v && IMP_FIELDS[f].wajib;
+        return `<td style="padding:5px 8px;border-bottom:1px solid var(--border);font-size:12px;color:${kosong?'var(--red)':'var(--text)'}${f==='uid_rfid'?';font-family:JetBrains Mono,monospace':''}">${v || (kosong ? '⚠ kosong' : '—')}</td>`;
+      }).join('')}</tr>`).join('')}
+    </tbody>`;
+}
+
+async function doImport() {
+  const missing = Object.entries(IMP_FIELDS).filter(([f,c]) => c.wajib && impColMap[f] === undefined).map(([,c]) => c.label.replace(' *',''));
+  if (missing.length) { showImpErr('Kolom wajib belum dipilih: ' + missing.join(', ')); return; }
+
+  const progWrap = document.getElementById('imp-prog-wrap');
+  const fill     = document.getElementById('imp-prog-fill');
+  const lbl      = document.getElementById('imp-prog-lbl');
+  progWrap.style.display = 'block';
+
+  let ok = 0, gagal = 0;
+  for (let i = 0; i < impRows.length; i++) {
+    const r    = impRows[i];
+    const body = {};
+    Object.keys(IMP_FIELDS).forEach(f => {
+      if (impColMap[f] !== undefined) body[f] = String(r[impColMap[f]] || '').trim();
+    });
+    if (!body.nis || !body.nama || !body.kelas) { gagal++; continue; }
+    try {
+      const res = await api('/siswa.php', 'POST', body);
+      if (res?.success) ok++; else gagal++;
+    } catch { gagal++; }
+    const pct = Math.round((i+1) / impRows.length * 100);
+    fill.style.width = pct + '%';
+    lbl.textContent  = `Memproses ${i+1} dari ${impRows.length}... (${pct}%)`;
+  }
+
+  progWrap.style.display = 'none';
+  fill.style.width = '0%';
+
+  if (ok > 0) {
+    showOkMsg('imp-msg-ok', `✓ Berhasil import ${ok} siswa!${gagal ? ' — '+gagal+' baris dilewati (data tidak lengkap).' : ''}`);
+    await loadKelas();
+  } else {
+    showImpErr(`Gagal import semua data. Periksa kolom wajib (NIS, Nama, Kelas) sudah terisi.`);
+  }
+}
+
+function resetImport() {
+  impRows = []; impHeaders = []; impColMap = {};
+  document.getElementById('imp-map-card').style.display     = 'none';
+  document.getElementById('imp-preview-card').style.display = 'none';
+  document.getElementById('imp-action-card').style.display  = 'none';
+  document.getElementById('imp-file').value = '';
+  const dz = document.getElementById('imp-dropzone');
+  dz.style.background = 'var(--surface2)';
+  dz.querySelector('p').textContent = 'Klik di sini atau seret file ke area ini';
+  hideImpMsg();
+}
+
+function showImpErr(msg) { showErrMsg('imp-msg-err', msg); }
+function hideImpMsg()    { ['imp-msg-ok','imp-msg-err'].forEach(id => document.getElementById(id).style.display='none'); }
+
+// ===== SCAN RFID =====
+let rfidSiswaAll = [], rfidSelected = null, rfidCaptured = null, rfidBuf = '', rfidTimeout = null;
+
+async function muatSiswaRfid() {
+  const data = await api('/siswa.php');
+  if (!data) return;
+  rfidSiswaAll = data;
+  renderRfidList(rfidSiswaAll);
+}
+
+function filterRfidSiswa() {
+  const q = document.getElementById('rfid-cari').value.toLowerCase().trim();
+  renderRfidList(q ? rfidSiswaAll.filter(s => s.nama.toLowerCase().includes(q) || s.nis.includes(q)) : rfidSiswaAll);
+}
+
+function renderRfidList(list) {
+  const el = document.getElementById('rfid-siswa-list');
+  if (!list.length) { el.innerHTML = '<p style="font-size:13px;color:var(--muted);text-align:center;padding:.5rem">Tidak ada siswa ditemukan</p>'; return; }
+  el.innerHTML = list.map(s => `
+    <div onclick="pilihSiswaRfid(${s.id})"
+      style="padding:7px 10px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;border:1px solid ${rfidSelected===s.id?'var(--green)':'transparent'};background:${rfidSelected===s.id?'var(--green-d)':'transparent'};transition:all .15s"
+      onmouseover="if(${rfidSelected!==s.id}) this.style.background='var(--surface2)'"
+      onmouseout="if(${rfidSelected!==s.id}) this.style.background='transparent'">
+      <div>
+        <div style="font-size:13px;font-weight:600">${s.nama}</div>
+        <div style="font-size:11px;color:var(--muted)">${s.kelas} · ${s.nis}</div>
+      </div>
+      <div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:${s.uid_rfid?'var(--green)':'var(--muted)'}">${s.uid_rfid || '— belum ada —'}</div>
+    </div>`).join('');
+}
+
+function pilihSiswaRfid(id) {
+  rfidSelected  = id;
+  rfidCaptured  = null;
+  rfidBuf       = '';
+  const s       = rfidSiswaAll.find(x => x.id === id);
+  const display = document.getElementById('rfid-display');
+  display.style.color = 'var(--amber)';
+  display.style.fontSize = '14px';
+  display.style.fontFamily = 'inherit';
+  display.style.letterSpacing = '0';
+  display.textContent = '⏳ Menunggu tap kartu untuk ' + (s ? s.nama : '') + '...';
+  document.getElementById('rfid-pulse').style.background   = 'var(--green)';
+  document.getElementById('rfid-pulse').style.animation    = 'pulse 1.2s ease-in-out infinite';
+  document.getElementById('rfid-btn-simpan').style.display = 'none';
+  document.getElementById('rfid-manual').value = '';
+  hideRfidMsg();
+  renderRfidList(rfidSiswaAll.filter(x => { const q=document.getElementById('rfid-cari').value.toLowerCase(); return !q||x.nama.toLowerCase().includes(q)||x.nis.includes(q); }));
+}
+
+function pakaiUIDManual() {
+  const v = document.getElementById('rfid-manual').value.trim().toUpperCase();
+  if (!v) return;
+  if (!rfidSelected) { showErrMsg('rfid-msg-err', 'Pilih siswa dulu dari daftar'); return; }
+  setRfidCaptured(v);
+}
+
+function setRfidCaptured(uid) {
+  rfidCaptured  = uid;
+  const display = document.getElementById('rfid-display');
+  display.style.color       = 'var(--green)';
+  display.style.fontSize    = '22px';
+  display.style.fontFamily  = "'JetBrains Mono', monospace";
+  display.style.letterSpacing = '.12em';
+  display.textContent       = uid;
+  document.getElementById('rfid-btn-simpan').style.display = 'inline-block';
+  showOkMsg('rfid-msg-ok', '✓ UID terbaca! Klik Simpan untuk menyimpan.');
+}
+
+// Tangkap input dari reader RFID USB (bekerja seperti keyboard)
+document.addEventListener('keydown', function(e) {
+  if (!document.getElementById('tab-import').classList.contains('active')) return;
+  if (!rfidSelected) return;
+  const focused = document.activeElement;
+  if (focused && (focused.id === 'rfid-cari' || focused.id === 'rfid-manual')) return;
+  if (e.key === 'Enter') {
+    if (rfidBuf.length > 2) setRfidCaptured(rfidBuf.trim().toUpperCase());
+    rfidBuf = '';
+    if (rfidTimeout) clearTimeout(rfidTimeout);
+  } else if (e.key.length === 1) {
+    rfidBuf += e.key;
+    if (rfidTimeout) clearTimeout(rfidTimeout);
+    rfidTimeout = setTimeout(() => { rfidBuf = ''; }, 500);
+  }
+});
+
+async function simpanUID() {
+  if (!rfidSelected || !rfidCaptured) return;
+  const s = rfidSiswaAll.find(x => x.id === rfidSelected);
+  if (!s) return;
+  const body = { nis: s.nis, nama: s.nama, kelas: s.kelas, jk: s.jk || 'L', hp_ortu: s.hp_ortu || '', uid_rfid: rfidCaptured };
+  const res  = await api('/siswa.php', 'POST', body);
+  if (res?.success) {
+    s.uid_rfid = rfidCaptured;
+    showOkMsg('rfid-msg-ok', `✓ UID berhasil disimpan untuk ${s.nama}!`);
+    document.getElementById('rfid-btn-simpan').style.display = 'none';
+    document.getElementById('rfid-pulse').style.background   = 'var(--muted)';
+    document.getElementById('rfid-pulse').style.animation    = 'none';
+    const display     = document.getElementById('rfid-display');
+    display.style.color      = 'var(--muted)';
+    display.style.fontSize   = '14px';
+    display.style.fontFamily = 'inherit';
+    display.style.letterSpacing = '0';
+    display.textContent      = 'Pilih siswa berikutnya untuk scan kartu lagi';
+    rfidSelected = null; rfidCaptured = null;
+    renderRfidList(rfidSiswaAll);
+  } else {
+    showErrMsg('rfid-msg-err', res?.error || 'Gagal menyimpan UID');
+  }
+}
+
+function hideRfidMsg() { ['rfid-msg-ok','rfid-msg-err'].forEach(id => document.getElementById(id).style.display='none'); }
   document.getElementById('login').style.display = 'none';
   document.getElementById('app').style.display   = 'block';
   initApp();
