@@ -534,6 +534,7 @@ function switchTab(name, btn) {
   if (name === 'siswa')   { loadSiswa(); }
   if (name === 'absensi') { loadAbsensi(); }
   if (name === 'import')  { muatSiswaRfid(); }
+}
 
 // ===== DASHBOARD =====
 async function loadDashboard() {
@@ -1042,6 +1043,8 @@ async function simpanUID() {
 }
 
 function hideRfidMsg() { ['rfid-msg-ok','rfid-msg-err'].forEach(id => document.getElementById(id).style.display='none'); }
+
+function onLoginSuccess() {
   document.getElementById('login').style.display = 'none';
   document.getElementById('app').style.display   = 'block';
   initApp();
