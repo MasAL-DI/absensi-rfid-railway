@@ -340,12 +340,30 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div style="display:flex;flex-direction:column;gap:.75rem">
 
           <div class="card">
-            <div class="ct"><span id="rfid-pulse" style="width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:2px"></span> Scan UID RFID per Siswa</div>
-            <p style="font-size:13px;color:var(--muted);margin-bottom:.75rem;line-height:1.6">Pilih siswa dari daftar → tap kartu RFID ke reader USB → klik Simpan. Reader RFID USB otomatis mengirim UID seperti keyboard.</p>
+            <div class="ct">
+              <span id="rfid-pulse" style="width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:4px;transition:background .3s"></span>
+              Scan UID RFID — ESP32 Serial
+            </div>
+
+            <!-- Koneksi Serial -->
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+                <div>
+                  <div style="font-size:13px;font-weight:600" id="serial-status-lbl">🔌 ESP32 belum terhubung</div>
+                  <div style="font-size:12px;color:var(--muted);margin-top:2px">Gunakan Chrome/Edge · Hubungkan ESP32 via kabel USB</div>
+                </div>
+                <div style="display:flex;gap:6px">
+                  <button id="btn-serial-connect" class="btn btn-b" onclick="serialHubungkan()" style="font-size:12px">🔌 Hubungkan ESP32</button>
+                  <button id="btn-serial-disconnect" class="btn btn-r" onclick="serialPutuskan()" style="font-size:12px;display:none">⏹ Putuskan</button>
+                </div>
+              </div>
+              <!-- Log serial mini -->
+              <div id="serial-log" style="margin-top:8px;display:none;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:6px 8px;max-height:60px;overflow-y:auto;line-height:1.6"></div>
+            </div>
 
             <!-- Cari siswa -->
             <div style="margin-bottom:8px">
-              <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:4px">Cari Siswa</label>
+              <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:4px">Pilih Siswa</label>
               <div style="display:flex;gap:6px">
                 <input id="rfid-cari" type="text" placeholder="Ketik nama atau NIS..." oninput="filterRfidSiswa()"
                   style="flex:1;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit">
@@ -353,14 +371,14 @@ tr:hover td{background:rgba(255,255,255,.02)}
               </div>
             </div>
 
-            <!-- Daftar siswa scroll -->
-            <div id="rfid-siswa-list" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:10px;border:1px solid var(--border);border-radius:6px;padding:6px">
+            <!-- Daftar siswa -->
+            <div id="rfid-siswa-list" style="max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:10px;border:1px solid var(--border);border-radius:6px;padding:6px">
               <p style="font-size:13px;color:var(--muted);text-align:center;padding:.5rem">Klik tombol Muat untuk tampilkan daftar siswa</p>
             </div>
 
             <!-- Display UID -->
             <div id="rfid-display"
-              style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500;text-align:center;padding:1rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--muted);letter-spacing:.12em;min-height:70px;display:flex;align-items:center;justify-content:center;margin-bottom:8px">
+              style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500;text-align:center;padding:1rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--muted);letter-spacing:.12em;min-height:70px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;transition:all .3s">
               Pilih siswa dulu
             </div>
 
@@ -368,7 +386,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
             <div style="margin-bottom:8px">
               <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:4px">Atau Ketik / Paste UID Manual</label>
               <div style="display:flex;gap:6px">
-                <input id="rfid-manual" type="text" placeholder="Contoh: A1B2C3D4"
+                <input id="rfid-manual" type="text" placeholder="Contoh: A1:B2:C3:D4"
                   style="flex:1;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace">
                 <button class="btn btn-b" onclick="pakaiUIDManual()" style="font-size:12px">Pakai</button>
               </div>
@@ -382,16 +400,18 @@ tr:hover td{background:rgba(255,255,255,.02)}
           <!-- Panduan singkat -->
           <div class="card">
             <div class="ct">📖 Panduan Cepat</div>
-            <div style="font-size:13px;color:var(--muted);line-height:1.8">
+            <div style="font-size:13px;color:var(--muted);line-height:1.9">
               <b style="color:var(--text)">Import Excel:</b><br>
               1. Unduh template → isi data siswa<br>
               2. Upload file → klik Import<br><br>
-              <b style="color:var(--text)">Daftarkan kartu RFID:</b><br>
-              1. Klik "Muat" untuk tampilkan siswa<br>
-              2. Klik nama siswa<br>
-              3. Tap kartu ke reader USB<br>
-              4. Klik "Simpan UID"<br><br>
-              <b style="color:var(--amber)">💡 Tips:</b> Tidak punya reader USB? Catat UID dari Serial Monitor ESP32, lalu paste ke kolom manual.
+              <b style="color:var(--text)">Daftarkan kartu RFID (ESP32):</b><br>
+              1. Colokkan ESP32 ke komputer via USB<br>
+              2. Klik <b style="color:var(--blue)">Hubungkan ESP32</b> → pilih port COM<br>
+              3. Klik nama siswa dari daftar<br>
+              4. Tap kartu ke ESP32 → UID otomatis terbaca<br>
+              5. Klik <b style="color:var(--green)">Simpan UID</b> → lanjut siswa berikutnya<br><br>
+              <b style="color:var(--amber)">⚠️ Syarat:</b> Harus pakai browser <b style="color:var(--text)">Chrome atau Edge</b>.<br>
+              <b style="color:var(--amber)">💡 Tips:</b> Tutup dulu Serial Monitor Arduino IDE sebelum hubungkan — tidak bisa dipakai bersamaan.
             </div>
           </div>
 
@@ -931,9 +951,103 @@ function resetImport() {
 function showImpErr(msg) { showErrMsg('imp-msg-err', msg); }
 function hideImpMsg()    { ['imp-msg-ok','imp-msg-err'].forEach(id => document.getElementById(id).style.display='none'); }
 
-// ===== SCAN RFID =====
+// ===== SCAN RFID + WEB SERIAL =====
 let rfidSiswaAll = [], rfidSelected = null, rfidCaptured = null, rfidBuf = '', rfidTimeout = null;
+let serialPort = null, serialReader = null, serialActive = false;
 
+// --- Hubungkan ESP32 via Web Serial ---
+async function serialHubungkan() {
+  if (!('serial' in navigator)) {
+    showErrMsg('rfid-msg-err', '❌ Browser tidak mendukung Web Serial. Gunakan Chrome atau Edge versi terbaru.');
+    return;
+  }
+  try {
+    serialPort = await navigator.serial.requestPort();
+    await serialPort.open({ baudRate: 115200 });
+    serialActive = true;
+    document.getElementById('btn-serial-connect').style.display    = 'none';
+    document.getElementById('btn-serial-disconnect').style.display = 'inline-block';
+    document.getElementById('serial-status-lbl').textContent       = '✅ ESP32 terhubung — tap kartu untuk baca UID';
+    document.getElementById('serial-status-lbl').style.color       = 'var(--green)';
+    document.getElementById('serial-log').style.display            = 'block';
+    document.getElementById('rfid-pulse').style.background         = 'var(--green)';
+    document.getElementById('rfid-pulse').style.animation          = 'pulse 1.5s ease-in-out infinite';
+    serialBaca();
+  } catch (e) {
+    if (e.name !== 'NotFoundError') {
+      showErrMsg('rfid-msg-err', '❌ Gagal terhubung: ' + e.message);
+    }
+  }
+}
+
+async function serialPutuskan() {
+  serialActive = false;
+  try { if (serialReader) { await serialReader.cancel(); serialReader = null; } } catch(e) {}
+  try { if (serialPort)   { await serialPort.close();   serialPort   = null; } } catch(e) {}
+  document.getElementById('btn-serial-connect').style.display    = 'inline-block';
+  document.getElementById('btn-serial-disconnect').style.display = 'none';
+  document.getElementById('serial-status-lbl').textContent       = '🔌 ESP32 belum terhubung';
+  document.getElementById('serial-status-lbl').style.color       = '';
+  document.getElementById('serial-log').style.display            = 'none';
+  document.getElementById('rfid-pulse').style.background         = 'var(--muted)';
+  document.getElementById('rfid-pulse').style.animation          = 'none';
+}
+
+async function serialBaca() {
+  const decoder = new TextDecoder();
+  let buffer    = '';
+  try {
+    while (serialPort && serialPort.readable && serialActive) {
+      serialReader = serialPort.readable.getReader();
+      try {
+        while (true) {
+          const { value, done } = await serialReader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // simpan baris yang belum lengkap
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            serialLogTambah(trimmed);
+            // Format dari main.cpp: ">>> KARTU: A1:B2:C3:D4 | 07:30:15"
+            const match = trimmed.match(/>>>\s*KARTU:\s*([0-9A-Fa-f:]+)/i);
+            if (match) {
+              const uid = match[1].trim().toUpperCase();
+              serialUIDDiterima(uid);
+            }
+          }
+        }
+      } finally {
+        serialReader.releaseLock();
+        serialReader = null;
+      }
+    }
+  } catch(e) {
+    if (serialActive) showErrMsg('rfid-msg-err', '⚠️ Koneksi Serial terputus: ' + e.message);
+    serialPutuskan();
+  }
+}
+
+function serialLogTambah(teks) {
+  const el  = document.getElementById('serial-log');
+  const brs = document.createElement('div');
+  brs.textContent = teks;
+  el.appendChild(brs);
+  el.scrollTop = el.scrollHeight;
+  // Batasi 30 baris
+  while (el.children.length > 30) el.removeChild(el.firstChild);
+}
+
+function serialUIDDiterima(uid) {
+  if (!rfidSelected) {
+    serialLogTambah('⚠ Pilih siswa dulu sebelum tap kartu');
+    return;
+  }
+  setRfidCaptured(uid);
+}
+
+// --- Daftar siswa ---
 async function muatSiswaRfid() {
   const data = await api('/siswa.php');
   if (!data) return;
@@ -963,22 +1077,25 @@ function renderRfidList(list) {
 }
 
 function pilihSiswaRfid(id) {
-  rfidSelected  = id;
-  rfidCaptured  = null;
-  rfidBuf       = '';
-  const s       = rfidSiswaAll.find(x => x.id === id);
+  rfidSelected = id;
+  rfidCaptured = null;
+  rfidBuf      = '';
+  const s      = rfidSiswaAll.find(x => x.id === id);
   const display = document.getElementById('rfid-display');
-  display.style.color = 'var(--amber)';
-  display.style.fontSize = '14px';
-  display.style.fontFamily = 'inherit';
+  display.style.color       = 'var(--amber)';
+  display.style.fontSize    = '13px';
+  display.style.fontFamily  = 'inherit';
   display.style.letterSpacing = '0';
-  display.textContent = '⏳ Menunggu tap kartu untuk ' + (s ? s.nama : '') + '...';
-  document.getElementById('rfid-pulse').style.background   = 'var(--green)';
-  document.getElementById('rfid-pulse').style.animation    = 'pulse 1.2s ease-in-out infinite';
+  display.textContent = serialActive
+    ? '⏳ Tap kartu ke ESP32 untuk ' + (s ? s.nama : '') + '...'
+    : '⏳ Menunggu UID untuk ' + (s ? s.nama : '') + '...';
   document.getElementById('rfid-btn-simpan').style.display = 'none';
   document.getElementById('rfid-manual').value = '';
   hideRfidMsg();
-  renderRfidList(rfidSiswaAll.filter(x => { const q=document.getElementById('rfid-cari').value.toLowerCase(); return !q||x.nama.toLowerCase().includes(q)||x.nis.includes(q); }));
+  renderRfidList(rfidSiswaAll.filter(x => {
+    const q = document.getElementById('rfid-cari').value.toLowerCase();
+    return !q || x.nama.toLowerCase().includes(q) || x.nis.includes(q);
+  }));
 }
 
 function pakaiUIDManual() {
@@ -989,21 +1106,22 @@ function pakaiUIDManual() {
 }
 
 function setRfidCaptured(uid) {
-  rfidCaptured  = uid;
+  rfidCaptured = uid;
   const display = document.getElementById('rfid-display');
-  display.style.color       = 'var(--green)';
-  display.style.fontSize    = '22px';
-  display.style.fontFamily  = "'JetBrains Mono', monospace";
+  display.style.color        = 'var(--green)';
+  display.style.fontSize     = '22px';
+  display.style.fontFamily   = "'JetBrains Mono', monospace";
   display.style.letterSpacing = '.12em';
-  display.textContent       = uid;
+  display.textContent        = uid;
   document.getElementById('rfid-btn-simpan').style.display = 'inline-block';
   showOkMsg('rfid-msg-ok', '✓ UID terbaca! Klik Simpan untuk menyimpan.');
 }
 
-// Tangkap input dari reader RFID USB (bekerja seperti keyboard)
+// Fallback: keyboard-based reader USB biasa
 document.addEventListener('keydown', function(e) {
   if (!document.getElementById('tab-import').classList.contains('active')) return;
   if (!rfidSelected) return;
+  if (serialActive) return; // kalau Web Serial aktif, abaikan keyboard
   const focused = document.activeElement;
   if (focused && (focused.id === 'rfid-cari' || focused.id === 'rfid-manual')) return;
   if (e.key === 'Enter') {
@@ -1027,14 +1145,12 @@ async function simpanUID() {
     s.uid_rfid = rfidCaptured;
     showOkMsg('rfid-msg-ok', `✓ UID berhasil disimpan untuk ${s.nama}!`);
     document.getElementById('rfid-btn-simpan').style.display = 'none';
-    document.getElementById('rfid-pulse').style.background   = 'var(--muted)';
-    document.getElementById('rfid-pulse').style.animation    = 'none';
     const display     = document.getElementById('rfid-display');
-    display.style.color      = 'var(--muted)';
-    display.style.fontSize   = '14px';
-    display.style.fontFamily = 'inherit';
+    display.style.color       = 'var(--muted)';
+    display.style.fontSize    = '13px';
+    display.style.fontFamily  = 'inherit';
     display.style.letterSpacing = '0';
-    display.textContent      = 'Pilih siswa berikutnya untuk scan kartu lagi';
+    display.textContent = serialActive ? '⏳ Tap kartu siswa berikutnya...' : 'Pilih siswa berikutnya';
     rfidSelected = null; rfidCaptured = null;
     renderRfidList(rfidSiswaAll);
   } else {
@@ -1043,8 +1159,6 @@ async function simpanUID() {
 }
 
 function hideRfidMsg() { ['rfid-msg-ok','rfid-msg-err'].forEach(id => document.getElementById(id).style.display='none'); }
-
-function onLoginSuccess() {
   document.getElementById('login').style.display = 'none';
   document.getElementById('app').style.display   = 'block';
   initApp();
@@ -1052,7 +1166,6 @@ function onLoginSuccess() {
 
 document.getElementById('lp').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
 
-// Auto refresh dashboard 30 detik
 setInterval(() => {
   if (document.querySelector('#tab-dashboard.active')) loadDashboard();
   if (document.querySelector('#tab-izin.active'))      loadIzin();
