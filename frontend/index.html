@@ -1162,8 +1162,7 @@ function hideRfidMsg() { ['rfid-msg-ok','rfid-msg-err'].forEach(id => document.g
   document.getElementById('login').style.display = 'none';
   document.getElementById('app').style.display   = 'block';
   initApp();
-}
-
+  
 document.getElementById('lp').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
 
 setInterval(() => {
