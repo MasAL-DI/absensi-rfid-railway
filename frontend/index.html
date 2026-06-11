@@ -1055,7 +1055,7 @@ async function muatSiswaRfid() {
   const data = await api('/siswa.php');
   if (!data) return;
   rfidSiswaAll = data;
-  renderRfidList(rfidSiswaAll);
+   filterRfidSiswa();
 }
 
 function filterRfidSiswa() {
