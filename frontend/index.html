@@ -1082,19 +1082,28 @@ function renderRfidList(list) {
 
 function pilihSiswaRfid(id) {
   rfidSelected = id;
-  rfidCaptured = null;
-  rfidBuf      = '';
   const s      = rfidSiswaAll.find(x => x.id === id);
   const display = document.getElementById('rfid-display');
-  display.style.color       = 'var(--amber)';
-  display.style.fontSize    = '13px';
-  display.style.fontFamily  = 'inherit';
-  display.style.letterSpacing = '0';
-  display.textContent = serialActive
-    ? '⏳ Tap kartu ke ESP32 untuk ' + (s ? s.nama : '') + '...'
-    : '⏳ Menunggu UID untuk ' + (s ? s.nama : '') + '...';
-  document.getElementById('rfid-btn-simpan').style.display = 'none';
-  document.getElementById('rfid-manual').value = '';
+  // Kalau sudah ada UID tertangkap, jangan reset — langsung tampilkan tombol Simpan
+  if (rfidCaptured) {
+    display.style.color       = 'var(--green)';
+    display.style.fontSize    = '22px';
+    display.style.fontFamily  = 'var(--mono)';
+    display.style.letterSpacing = '2px';
+    display.textContent = rfidCaptured;
+    document.getElementById('rfid-btn-simpan').style.display = 'block';
+  } else {
+    rfidBuf = '';
+    display.style.color       = 'var(--amber)';
+    display.style.fontSize    = '13px';
+    display.style.fontFamily  = 'inherit';
+    display.style.letterSpacing = '0';
+    display.textContent = serialActive
+      ? '⏳ Tap kartu ke ESP32 untuk ' + (s ? s.nama : '') + '...'
+      : '⏳ Menunggu UID untuk ' + (s ? s.nama : '') + '...';
+    document.getElementById('rfid-btn-simpan').style.display = 'none';
+    document.getElementById('rfid-manual').value = '';
+  }
   hideRfidMsg();
   renderRfidList(rfidSiswaAll.filter(x => {
     const q = document.getElementById('rfid-cari').value.toLowerCase();
