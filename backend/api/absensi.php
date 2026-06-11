@@ -6,8 +6,10 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 // POST — dari ESP32
 if ($method === 'POST') {
-    $body  = getBody();
-    $uid   = trim($body['uid'] ?? '');
+    $body      = getBody();
+    $uid       = trim($body['uid']       ?? '');
+    $kelasEsp  = trim($body['kelas']     ?? '');   // kelas dari ESP32
+    $deviceId  = trim($body['device_id'] ?? '');   // ID perangkat (opsional, untuk log)
 
     if (!$uid) jsonResponse(['status' => 'error', 'pesan' => 'UID wajib'], 400);
 
@@ -24,8 +26,36 @@ if ($method === 'POST') {
         jsonResponse(['status' => 'tidak_terdaftar', 'pesan' => 'Kartu tidak terdaftar', 'uid' => $uid]);
     }
 
+    // Kelas: prioritaskan dari database siswa, fallback ke ESP32
+    $kelasFinal = $siswa['kelas'] ?: $kelasEsp;
+
     $tanggal = date('Y-m-d');
     $waktu   = date('H:i:s');
+
+    // ===== RATE LIMITING: cegah tap ganda dalam 10 detik =====
+    $stmt = $db->prepare(
+        "SELECT updated_at FROM absensi
+         WHERE siswa_id = ? AND tanggal = ?
+         ORDER BY updated_at DESC LIMIT 1"
+    );
+    $stmt->bind_param('is', $siswa['id'], $tanggal);
+    $stmt->execute();
+    $tapTerakhir = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if ($tapTerakhir) {
+        $selisihDetik = time() - strtotime($tapTerakhir['updated_at']);
+        if ($selisihDetik < 10) {
+            $db->close();
+            jsonResponse([
+                'status' => 'terlalu_cepat',
+                'nama'   => $siswa['nama'],
+                'pesan'  => 'Tap terlalu cepat, tunggu sebentar',
+                'tunggu' => 10 - $selisihDetik
+            ]);
+        }
+    }
+    // ===== END RATE LIMITING =====
 
     // CEK: apakah ada izin keluar aktif untuk siswa ini?
 
@@ -103,24 +133,25 @@ if ($method === 'POST') {
         $statusMasuk = $waktu > $batasTelat ? 'terlambat' : 'hadir';
 
         $stmt = $db->prepare(
-            'INSERT INTO absensi (siswa_id, kelas, tanggal, waktu_masuk, status_masuk, uid_rfid)
-             VALUES (?, ?, ?, ?, ?, ?)'
+            'INSERT INTO absensi (siswa_id, kelas, tanggal, waktu_masuk, status_masuk, uid_rfid, device_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?)'
         );
-        $stmt->bind_param('isssss',
-            $siswa['id'], $siswa['kelas'], $tanggal, $waktu, $statusMasuk, $uid
+        $stmt->bind_param('issssss',
+            $siswa['id'], $kelasFinal, $tanggal, $waktu, $statusMasuk, $uid, $deviceId
         );
         $stmt->execute();
         $stmt->close();
         $db->close();
 
         jsonResponse([
-            'status' => $statusMasuk,
-            'tipe'   => 'masuk',
-            'nama'   => $siswa['nama'],
-            'kelas'  => $siswa['kelas'],
-            'nis'    => $siswa['nis'],
-            'waktu'  => $waktu,
-            'pesan'  => $statusMasuk === 'hadir' ? 'Selamat datang!' : 'Harap lebih tepat waktu!'
+            'status'    => $statusMasuk,
+            'tipe'      => 'masuk',
+            'nama'      => $siswa['nama'],
+            'kelas'     => $kelasFinal,
+            'nis'       => $siswa['nis'],
+            'waktu'     => $waktu,
+            'device_id' => $deviceId,
+            'pesan'     => $statusMasuk === 'hadir' ? 'Selamat datang!' : 'Harap lebih tepat waktu!'
         ]);
     }
 
