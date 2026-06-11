@@ -517,6 +517,7 @@ function doLogout() {
 
 // ===== API =====
 async function api(path, method='GET', body=null) {
+  token = localStorage.getItem('rfid_token') || token;
   const opts = { method, headers:{'Content-Type':'application/json','Authorization':'Bearer '+token} };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(API + path, opts);
