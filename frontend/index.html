@@ -931,6 +931,7 @@ async function doImport() {
   if (ok > 0) {
     showOkMsg('imp-msg-ok', `✓ Berhasil import ${ok} siswa!${gagal ? ' — '+gagal+' baris dilewati (data tidak lengkap).' : ''}`);
     await loadKelas();
+    await muatSiswaRfid();
   } else {
     showImpErr(`Gagal import semua data. Periksa kolom wajib (NIS, Nama, Kelas) sudah terisi.`);
   }
@@ -1049,6 +1050,8 @@ function serialUIDDiterima(uid) {
 
 // --- Daftar siswa ---
 async function muatSiswaRfid() {
+  document.getElementById('rfid-siswa-list').innerHTML =
+    '<p style="font-size:13px;color:var(--muted);text-align:center;padding:.5rem">⏳ Memuat data siswa...</p>';
   const data = await api('/siswa.php');
   if (!data) return;
   rfidSiswaAll = data;
