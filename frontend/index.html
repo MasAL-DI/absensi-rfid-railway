@@ -1069,7 +1069,7 @@ function renderRfidList(list) {
   if (!list.length) { el.innerHTML = '<p style="font-size:13px;color:var(--muted);text-align:center;padding:.5rem">Tidak ada siswa ditemukan</p>'; return; }
   el.innerHTML = list.map(s => `
     <div onclick="pilihSiswaRfid(${s.id})"
-      style="padding:7px 10px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;border:1px solid ${rfidSelected===s.id?'var(--green)':'transparent'};background:${rfidSelected===s.id?'var(--green-d)':'transparent'};transition:all .15s"
+      style="padding:7px 10px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;border:1px solid ${String(rfidSelected)===String(s.id)?'var(--green)':'transparent'};background:${String(rfidSelected)===String(s.id)?'var(--green-d)':'transparent'};transition:all .15s"
       onmouseover="if(${rfidSelected!==s.id}) this.style.background='var(--surface2)'"
       onmouseout="if(${rfidSelected!==s.id}) this.style.background='transparent'">
       <div>
@@ -1082,7 +1082,7 @@ function renderRfidList(list) {
 
 function pilihSiswaRfid(id) {
   rfidSelected = id;
-  const s      = rfidSiswaAll.find(x => x.id === id);
+  const s      = rfidSiswaAll.find(x => String(x.id) === String(id));
   const display = document.getElementById('rfid-display');
   // Kalau sudah ada UID tertangkap, jangan reset — langsung tampilkan tombol Simpan
   if (rfidCaptured) {
@@ -1150,7 +1150,7 @@ document.addEventListener('keydown', function(e) {
 
 async function simpanUID() {
   if (!rfidSelected || !rfidCaptured) return;
-  const s = rfidSiswaAll.find(x => x.id === rfidSelected);
+  const s = rfidSiswaAll.find(x => String(x.id) === String(rfidSelected));
   if (!s) return;
   const body = { nis: s.nis, nama: s.nama, kelas: s.kelas, jk: s.jk || 'L', hp_ortu: s.hp_ortu || '', uid_rfid: rfidCaptured };
   const res  = await api('/siswa.php', 'POST', body);
