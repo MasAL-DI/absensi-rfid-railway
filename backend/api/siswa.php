@@ -28,8 +28,8 @@ if ($method === 'POST') {
     $uid  = trim($body['uid_rfid'] ?? ''); $hp = trim($body['hp_ortu'] ?? '');
     if (!$nis || !$nama || !$kelas) jsonResponse(['error' => 'NIS, nama, kelas wajib'], 400);
     $db   = getDB();
-    $stmt = $db->prepare('INSERT INTO siswa (nis,nama,kelas,jk,uid_rfid,hp_ortu) VALUES (?,?,?,?,?,?)
-        ON DUPLICATE KEY UPDATE nama=VALUES(nama),kelas=VALUES(kelas),jk=VALUES(jk),uid_rfid=IF(VALUES(uid_rfid)!='',VALUES(uid_rfid),uid_rfid),hp_ortu=VALUES(hp_ortu)');
+    $stmt = $db->prepare("INSERT INTO siswa (nis,nama,kelas,jk,uid_rfid,hp_ortu) VALUES (?,?,?,?,?,?)
+        ON DUPLICATE KEY UPDATE nama=VALUES(nama),kelas=VALUES(kelas),jk=VALUES(jk),uid_rfid=IF(VALUES(uid_rfid)!='',VALUES(uid_rfid),uid_rfid),hp_ortu=VALUES(hp_ortu)");
     $stmt->bind_param('ssssss', $nis, $nama, $kelas, $jk, $uid, $hp);
     $stmt->execute(); $stmt->close(); $db->close();
     jsonResponse(['success' => true, 'pesan' => 'Siswa berhasil disimpan']);
