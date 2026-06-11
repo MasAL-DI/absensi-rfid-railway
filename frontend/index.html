@@ -835,7 +835,7 @@ function handleImpFile(file) {
         const data = new Uint8Array(e.target.result);
         const wb = XLSX.read(data, {type:'array'});
         const ws = wb.Sheets[wb.SheetNames[0]];
-        json = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+        json = XLSX.utils.sheet_to_json(ws, {header:1, defval:'', raw:false});
       }
       if (json.length < 2) { showImpErr('File kosong atau tidak ada data siswa'); return; }
       impHeaders = json[0].map(h => String(h).trim().toLowerCase());
@@ -1055,7 +1055,7 @@ async function muatSiswaRfid() {
   const data = await api('/siswa.php');
   if (!data) return;
   rfidSiswaAll = data;
-   filterRfidSiswa();
+  filterRfidSiswa();
 }
 
 function filterRfidSiswa() {
