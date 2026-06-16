@@ -266,6 +266,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
           <select id="r-kls"><option value="">Pilih Kelas</option></select>
           <input type="month" id="r-bln">
           <button class="btn btn-g" onclick="loadRekap()">Tampilkan</button>
+          <button class="btn btn-b" onclick="exportRekapCSV()" id="btn-export-rekap" style="display:none">⬇️ Export Excel</button>
         </div>
         <table>
           <thead><tr><th>NIS</th><th>Nama</th><th>Hadir</th><th>Terlambat</th><th>Alpha</th><th>Total Hadir</th><th>Total Pulang</th></tr></thead>
@@ -725,12 +726,26 @@ async function loadAbsensi() {
 }
 
 // ===== REKAP BULANAN =====
+let rekapData = []; // simpan data terakhir untuk export
+
 async function loadRekap() {
   const kelas = document.getElementById('r-kls').value;
+  const bulan = document.getElementById('r-bln').value;
   if (!kelas) return alert('Pilih kelas terlebih dahulu');
-  const data = await api(`/rekap.php?kelas=${kelas}&bulan=${document.getElementById('r-bln').value}`);
+  const data = await api(`/rekap.php?kelas=${kelas}&bulan=${bulan}`);
   const tbody = document.getElementById('rekap-tbody');
-  if (!data?.data?.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Tidak ada data</td></tr>'; return; }
+  const btnExport = document.getElementById('btn-export-rekap');
+
+  if (!data?.data?.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Tidak ada data</td></tr>';
+    btnExport.style.display = 'none';
+    rekapData = [];
+    return;
+  }
+
+  rekapData = data.data; // simpan untuk export
+  btnExport.style.display = 'inline-block';
+
   tbody.innerHTML = data.data.map(r => `
     <tr>
       <td class="mono">${r.nis}</td><td>${r.nama}</td>
@@ -740,6 +755,43 @@ async function loadRekap() {
       <td class="mono">${r.total_hadir||0}</td>
       <td class="mono">${r.total_pulang||0}</td>
     </tr>`).join('');
+}
+
+function exportRekapCSV() {
+  if (!rekapData.length) return;
+  const kelas = document.getElementById('r-kls').value;
+  const bulan = document.getElementById('r-bln').value;
+
+  // Buat isi CSV dengan BOM UTF-8 supaya Excel baca karakter Indonesia
+  const bom    = '\uFEFF';
+  const header = ['No','NIS','Nama','Kelas','Hadir','Terlambat','Alpha','Total Hadir','Total Pulang'];
+  const rows   = rekapData.map((r, i) => [
+    i + 1, r.nis, r.nama, r.kelas,
+    r.hadir||0, r.terlambat||0, r.alpha||0,
+    r.total_hadir||0, r.total_pulang||0
+  ]);
+
+  // Baris total
+  const total = [
+    '', '', 'TOTAL', '',
+    rekapData.reduce((s,r) => s + (+r.hadir||0), 0),
+    rekapData.reduce((s,r) => s + (+r.terlambat||0), 0),
+    rekapData.reduce((s,r) => s + (+r.alpha||0), 0),
+    '', ''
+  ];
+
+  const csv = bom + [header, ...rows, [], total]
+    .map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))
+    .join('\r\n');
+
+  // Download
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `rekap_${kelas}_${bulan}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ===== DATA SISWA =====
