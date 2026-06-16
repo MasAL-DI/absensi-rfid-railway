@@ -15,6 +15,33 @@
   --green-d: #0d2a14; --amber-d: #2d1f00; --red-d:   #2d0f0e; --blue-d: #0c1e3a;
   --accent:  #238636;
 }
+
+/* ===== LIGHT THEME ===== */
+body.light {
+  --bg:      #f6f8fa; --surface: #ffffff; --surface2: #f0f2f5;
+  --border:  #d0d7de; --text:    #1f2328; --muted:    #656d76;
+  --green:   #1a7f37; --amber:   #9a6700; --red:      #cf222e;
+  --blue:    #0969da; --purple:  #6639ba;
+  --green-d: #dafbe1; --amber-d: #fff8c5; --red-d:   #ffebe9; --blue-d: #ddf4ff;
+  --accent:  #1a7f37;
+}
+body.light .topbar { box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+body.light .sc::after { opacity: .7; }
+body.light tr:hover td { background: rgba(0,0,0,.03); }
+
+/* Tombol toggle theme */
+.btn-theme {
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all .2s;
+  line-height: 1;
+}
+.btn-theme:hover { border-color: var(--blue); color: var(--blue); }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
 
@@ -160,6 +187,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <span class="tclock" id="tclock"></span>
       <span class="tuser" id="tuser"></span>
       <span class="trole" id="trole"></span>
+      <button class="btn-theme" onclick="toggleTheme()" id="btn-theme" title="Ganti tema">🌙</button>
       <button class="btn-out" onclick="doLogout()">Keluar</button>
     </div>
   </div>
@@ -472,6 +500,21 @@ document.getElementById('r-bln').value = thisMonth();
 updateClock();
 setInterval(updateClock, 1000);
 
+// ===== THEME =====
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light');
+  document.getElementById('btn-theme').textContent = isLight ? '🌑' : '🌙';
+  localStorage.setItem('rfid_theme', isLight ? 'light' : 'dark');
+}
+
+// Terapkan tema tersimpan saat load
+(function() {
+  if (localStorage.getItem('rfid_theme') === 'light') {
+    document.body.classList.add('light');
+    // Tombol belum ada saat ini, diset saat initApp
+  }
+})();
+
 function today()     { return new Date().toISOString().split('T')[0]; }
 function thisMonth() { return new Date().toISOString().substring(0, 7); }
 
@@ -530,6 +573,9 @@ async function api(path, method='GET', body=null) {
 async function initApp() {
   document.getElementById('tuser').textContent = userData.nama || '';
   document.getElementById('trole').textContent = userData.role || '';
+  // Set ikon tema sesuai preferensi tersimpan
+  const btn = document.getElementById('btn-theme');
+  if (btn) btn.textContent = document.body.classList.contains('light') ? '🌑' : '🌙';
   await loadKelas();
   loadDashboard();
   loadIzin();
