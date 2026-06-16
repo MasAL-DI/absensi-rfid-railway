@@ -197,7 +197,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <button class="tab active" onclick="switchTab('dashboard',this)">Dashboard</button>
       <button class="tab" onclick="switchTab('izin',this)">Izin Keluar</button>
       <button class="tab" onclick="switchTab('absensi',this)">Log Absensi</button>
-      <button class="tab" onclick="switchTab('rekap',this)">Rekap Bulanan</button>
+      <button class="tab" onclick="switchTab('rekap',this)">Rekap</button>
       <button class="tab" onclick="switchTab('siswa',this)">Data Siswa</button>
       <button class="tab" onclick="switchTab('import',this)">📥 Import Data</button>
     </div>
@@ -286,20 +286,40 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
     </div>
 
-    <!-- REKAP BULANAN -->
+    <!-- REKAP -->
     <div id="tab-rekap" class="tab-pane">
       <div class="card">
-        <div class="ct">Rekap Kehadiran Bulanan</div>
+        <div class="ct">Rekap Kehadiran</div>
+
+        <!-- Pilihan Mode -->
+        <div style="display:flex;gap:4px;margin-bottom:.85rem">
+          <button id="rmode-harian"   class="btn" style="background:var(--accent);color:#fff;font-size:12px;padding:5px 14px" onclick="setRekapMode('harian')">Harian</button>
+          <button id="rmode-mingguan" class="btn" style="background:var(--surface2);color:var(--muted);border:1px solid var(--border);font-size:12px;padding:5px 14px" onclick="setRekapMode('mingguan')">Mingguan</button>
+          <button id="rmode-bulanan"  class="btn" style="background:var(--surface2);color:var(--muted);border:1px solid var(--border);font-size:12px;padding:5px 14px" onclick="setRekapMode('bulanan')">Bulanan</button>
+        </div>
+
         <div class="fbar">
           <select id="r-kls"><option value="">Pilih Kelas</option></select>
-          <input type="month" id="r-bln">
+
+          <!-- Input harian -->
+          <input type="date"  id="r-tgl"  style="display:block">
+          <!-- Input mingguan -->
+          <input type="week"  id="r-mggu" style="display:none">
+          <!-- Input bulanan -->
+          <input type="month" id="r-bln"  style="display:none">
+
           <button class="btn btn-g" onclick="loadRekap()">Tampilkan</button>
-          <button class="btn btn-b" onclick="exportRekapCSV()" id="btn-export-rekap" style="display:none">⬇️ Export Excel</button>
+          <button class="btn btn-b" onclick="exportRekapCSV()" id="btn-export-rekap" style="display:none">⬇️ Export CSV</button>
         </div>
-        <table>
-          <thead><tr><th>NIS</th><th>Nama</th><th>Hadir</th><th>Terlambat</th><th>Alpha</th><th>Total Hadir</th><th>Total Pulang</th></tr></thead>
-          <tbody id="rekap-tbody"><tr><td colspan="7" class="empty">Pilih kelas dan bulan</td></tr></tbody>
-        </table>
+
+        <div id="rekap-table-wrap">
+          <table id="rekap-table">
+            <thead id="rekap-thead">
+              <tr><th>NIS</th><th>Nama</th><th>Status Masuk</th><th>Jam Masuk</th><th>Status Pulang</th><th>Jam Pulang</th></tr>
+            </thead>
+            <tbody id="rekap-tbody"><tr><td colspan="6" class="empty">Pilih kelas dan periode</td></tr></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
