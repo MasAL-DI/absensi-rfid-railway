@@ -517,6 +517,7 @@ let izinSiswaId = null;
 
 document.getElementById('f-tgl').value = today();
 document.getElementById('r-bln').value = thisMonth();
+document.getElementById('r-tgl').value = today();
 updateClock();
 setInterval(updateClock, 1000);
 
@@ -621,6 +622,7 @@ function switchTab(name, btn) {
   if (name === 'izin')    { loadIzin(); }
   if (name === 'siswa')   { loadSiswa(); }
   if (name === 'absensi') { loadAbsensi(); }
+  if (name === 'rekap')   { setRekapMode(rekapMode); }
   if (name === 'import')  { muatSiswaRfid(); }
 }
 
@@ -791,27 +793,137 @@ async function loadAbsensi() {
     </tr>`).join('');
 }
 
-// ===== REKAP BULANAN =====
-let rekapData = []; // simpan data terakhir untuk export
+// ===== REKAP (Harian / Mingguan / Bulanan) =====
+let rekapMode = 'harian';
+let rekapData = null; // simpan response terakhir (object dari API)
+
+function thisWeek() {
+  const d = new Date();
+  const onejan = new Date(d.getFullYear(), 0, 1);
+  const week = Math.ceil((((d - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+  return `${d.getFullYear()}-W${String(week).padStart(2,'0')}`;
+}
+
+function setRekapMode(mode) {
+  rekapMode = mode;
+
+  // Toggle tampilan tombol mode
+  ['harian','mingguan','bulanan'].forEach(m => {
+    const btn = document.getElementById('rmode-' + m);
+    if (m === mode) {
+      btn.style.background = 'var(--accent)'; btn.style.color = '#fff'; btn.style.border = 'none';
+    } else {
+      btn.style.background = 'var(--surface2)'; btn.style.color = 'var(--muted)'; btn.style.border = '1px solid var(--border)';
+    }
+  });
+
+  // Toggle input yang relevan
+  document.getElementById('r-tgl').style.display  = mode === 'harian'   ? 'block' : 'none';
+  document.getElementById('r-mggu').style.display  = mode === 'mingguan' ? 'block' : 'none';
+  document.getElementById('r-bln').style.display   = mode === 'bulanan'  ? 'block' : 'none';
+
+  // Reset tabel
+  rekapData = null;
+  document.getElementById('btn-export-rekap').style.display = 'none';
+  renderRekapHeader(mode);
+  document.getElementById('rekap-tbody').innerHTML =
+    `<tr><td colspan="${mode==='mingguan'?20:6}" class="empty">Pilih kelas dan periode, lalu klik Tampilkan</td></tr>`;
+}
+
+function renderRekapHeader(mode) {
+  const thead = document.getElementById('rekap-thead');
+  if (mode === 'bulanan') {
+    thead.innerHTML = '<tr><th>NIS</th><th>Nama</th><th>Hadir</th><th>Terlambat</th><th>Alpha</th><th>Total Hadir</th><th>Total Pulang</th></tr>';
+  } else if (mode === 'harian') {
+    thead.innerHTML = '<tr><th>NIS</th><th>Nama</th><th>Status Masuk</th><th>Jam Masuk</th><th>Status Pulang</th><th>Jam Pulang</th></tr>';
+  } else {
+    // mingguan: header dibangun dinamis saat data masuk (per-hari kolom)
+    thead.innerHTML = '<tr><th>NIS</th><th>Nama</th><th colspan="100">Pilih kelas & minggu lalu klik Tampilkan</th></tr>';
+  }
+}
+
+function rekapQueryParams() {
+  const kelas = document.getElementById('r-kls').value;
+  if (!kelas) { alert('Pilih kelas terlebih dahulu'); return null; }
+
+  const params = new URLSearchParams({ kelas, mode: rekapMode });
+
+  if (rekapMode === 'harian') {
+    params.set('tanggal', document.getElementById('r-tgl').value || today());
+  } else if (rekapMode === 'mingguan') {
+    params.set('minggu', document.getElementById('r-mggu').value || thisWeek());
+  } else {
+    params.set('bulan', document.getElementById('r-bln').value || thisMonth());
+  }
+  return params;
+}
 
 async function loadRekap() {
-  const kelas = document.getElementById('r-kls').value;
-  const bulan = document.getElementById('r-bln').value;
-  if (!kelas) return alert('Pilih kelas terlebih dahulu');
-  const data = await api(`/rekap.php?kelas=${kelas}&bulan=${bulan}`);
+  const params = rekapQueryParams();
+  if (!params) return;
+
   const tbody = document.getElementById('rekap-tbody');
   const btnExport = document.getElementById('btn-export-rekap');
+  tbody.innerHTML = `<tr><td colspan="20" class="empty">Memuat...</td></tr>`;
 
-  if (!data?.data?.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty">Tidak ada data</td></tr>';
+  const data = await api(`/rekap.php?${params.toString()}`);
+
+  if (!data || !data.data || !data.data.length) {
+    tbody.innerHTML = '<tr><td colspan="20" class="empty">Tidak ada data</td></tr>';
     btnExport.style.display = 'none';
-    rekapData = [];
+    rekapData = null;
     return;
   }
 
-  rekapData = data.data; // simpan untuk export
+  rekapData = data;
   btnExport.style.display = 'inline-block';
 
+  if (rekapMode === 'harian')   renderRekapHarian(data);
+  if (rekapMode === 'mingguan') renderRekapMingguan(data);
+  if (rekapMode === 'bulanan')  renderRekapBulanan(data);
+}
+
+function renderRekapHarian(data) {
+  renderRekapHeader('harian');
+  const tbody = document.getElementById('rekap-tbody');
+  tbody.innerHTML = data.data.map(r => `
+    <tr>
+      <td class="mono">${r.nis}</td><td>${r.nama}</td>
+      <td>${r.waktu_masuk ? `<span class="badge ${r.status_masuk}">${r.status_masuk}</span>` : '<span class="badge alpha">alpha</span>'}</td>
+      <td class="mono">${r.waktu_masuk||'-'}</td>
+      <td>${r.waktu_pulang ? `<span class="badge pulang">${r.status_pulang}</span>` : '-'}</td>
+      <td class="mono">${r.waktu_pulang||'-'}</td>
+    </tr>`).join('');
+}
+
+function renderRekapMingguan(data) {
+  const thead = document.getElementById('rekap-thead');
+  const namaHari = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  let headHtml = '<tr><th>NIS</th><th>Nama</th>';
+  data.hari.forEach((tgl, i) => {
+    const label = namaHari[i] + ' ' + tgl.slice(8,10) + '/' + tgl.slice(5,7);
+    headHtml += `<th>${label}<br><span style="font-size:9px">Masuk / Pulang</span></th>`;
+  });
+  headHtml += '</tr>';
+  thead.innerHTML = headHtml;
+
+  const tbody = document.getElementById('rekap-tbody');
+  tbody.innerHTML = data.data.map(r => {
+    let cols = `<td class="mono">${r.nis}</td><td>${r.nama}</td>`;
+    data.hari.forEach(tgl => {
+      const h = r.hari[tgl] || {};
+      const masuk  = h.waktu_masuk  ? h.waktu_masuk.slice(0,5)  : '-';
+      const pulang = h.waktu_pulang ? h.waktu_pulang.slice(0,5) : '-';
+      const statusColor = h.status_masuk === 'hadir' ? 'var(--green)' : h.status_masuk === 'terlambat' ? 'var(--amber)' : 'var(--red)';
+      cols += `<td class="mono" style="font-size:11px"><span style="color:${statusColor}">${masuk}</span> / ${pulang}</td>`;
+    });
+    return `<tr>${cols}</tr>`;
+  }).join('');
+}
+
+function renderRekapBulanan(data) {
+  renderRekapHeader('bulanan');
+  const tbody = document.getElementById('rekap-tbody');
   tbody.innerHTML = data.data.map(r => `
     <tr>
       <td class="mono">${r.nis}</td><td>${r.nama}</td>
@@ -823,41 +935,36 @@ async function loadRekap() {
     </tr>`).join('');
 }
 
-function exportRekapCSV() {
-  if (!rekapData.length) return;
-  const kelas = document.getElementById('r-kls').value;
-  const bulan = document.getElementById('r-bln').value;
+async function exportRekapCSV() {
+  const params = rekapQueryParams();
+  if (!params) return;
+  params.set('format', 'csv');
 
-  // Buat isi CSV dengan BOM UTF-8 supaya Excel baca karakter Indonesia
-  const bom    = '\uFEFF';
-  const header = ['No','NIS','Nama','Kelas','Hadir','Terlambat','Alpha','Total Hadir','Total Pulang'];
-  const rows   = rekapData.map((r, i) => [
-    i + 1, r.nis, r.nama, r.kelas,
-    r.hadir||0, r.terlambat||0, r.alpha||0,
-    r.total_hadir||0, r.total_pulang||0
-  ]);
+  try {
+    token = localStorage.getItem('rfid_token') || token;
+    const res = await fetch(`${API}/rekap.php?${params.toString()}`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (res.status === 401) { doLogout(); return; }
+    if (!res.ok) { alert('Gagal mengambil file export'); return; }
 
-  // Baris total
-  const total = [
-    '', '', 'TOTAL', '',
-    rekapData.reduce((s,r) => s + (+r.hadir||0), 0),
-    rekapData.reduce((s,r) => s + (+r.terlambat||0), 0),
-    rekapData.reduce((s,r) => s + (+r.alpha||0), 0),
-    '', ''
-  ];
+    const blob = await res.blob();
+    // Ambil nama file dari header Content-Disposition kalau ada
+    const cd = res.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : `rekap_${rekapMode}.csv`;
 
-  const csv = bom + [header, ...rows, [], total]
-    .map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))
-    .join('\r\n');
-
-  // Download
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `rekap_${kelas}_${bulan}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href    = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert('Tidak bisa terhubung ke server untuk export');
+  }
 }
 
 // ===== DATA SISWA =====
