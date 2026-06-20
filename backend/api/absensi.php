@@ -32,6 +32,58 @@ if ($method === 'POST') {
     $tanggal = date('Y-m-d');
     $waktu   = date('H:i:s');
 
+    // ===== CEK SESI AKTIF DI DEVICE INI (dzuhur, ekskul, dll) =====
+    // Kalau device sedang dipakai sesi khusus, tap TIDAK diproses sebagai
+    // absen masuk/pulang biasa — langsung dicatat ke sesi tersebut.
+    if ($deviceId) {
+        $stmt = $db->prepare('
+            SELECT sa.id, sa.nama_sesi
+            FROM sesi_device sd
+            JOIN sesi_absensi sa ON sd.sesi_id = sa.id
+            WHERE sd.device_id = ? AND sa.status = "aktif"
+            LIMIT 1
+        ');
+        $stmt->bind_param('s', $deviceId);
+        $stmt->execute();
+        $sesiAktif = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if ($sesiAktif) {
+            // Cek apakah siswa ini sudah tap di sesi ini
+            $stmt = $db->prepare('SELECT id FROM tap_sesi WHERE sesi_id = ? AND siswa_id = ?');
+            $stmt->bind_param('ii', $sesiAktif['id'], $siswa['id']);
+            $stmt->execute();
+            $sudahTap = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            if ($sudahTap) {
+                $db->close();
+                jsonResponse([
+                    'status' => 'sudah_tap_sesi',
+                    'nama'   => $siswa['nama'],
+                    'pesan'  => "Sudah tercatat di sesi '{$sesiAktif['nama_sesi']}'"
+                ]);
+            }
+
+            $stmt = $db->prepare(
+                'INSERT INTO tap_sesi (sesi_id, siswa_id, device_id, waktu_tap) VALUES (?, ?, ?, ?)'
+            );
+            $stmt->bind_param('iiss', $sesiAktif['id'], $siswa['id'], $deviceId, $waktu);
+            $stmt->execute();
+            $stmt->close();
+            $db->close();
+
+            jsonResponse([
+                'status'    => 'tap_sesi',
+                'nama'      => $siswa['nama'],
+                'nama_sesi' => $sesiAktif['nama_sesi'],
+                'waktu'     => $waktu,
+                'pesan'     => "Tercatat: {$sesiAktif['nama_sesi']}"
+            ]);
+        }
+    }
+    // ===== END CEK SESI AKTIF =====
+
     // ===== RATE LIMITING: cegah tap ganda dalam 10 detik =====
     $stmt = $db->prepare(
         "SELECT updated_at FROM absensi

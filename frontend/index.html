@@ -111,6 +111,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .badge.alpha{background:var(--red-d);color:var(--red);border:1px solid #5a1a18}
 .badge.pulang,.badge.tepat_waktu{background:var(--blue-d);color:var(--blue);border:1px solid #1a3a6a}
 .badge.lebih_awal{background:#1a1a3a;color:#8957e5;border:1px solid #3a2a6a}
+.badge.badge-g{background:var(--green-d);color:var(--green);border:1px solid #1e4a26}
+.badge.badge-m{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
 .badge.keluar{background:var(--amber-d);color:var(--amber);border:1px solid #5a3a00}
 .badge.kembali,.badge.menunggu{background:var(--green-d);color:var(--green);border:1px solid #1e4a26}
 
@@ -196,6 +198,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="tabs">
       <button class="tab active" onclick="switchTab('dashboard',this)">Dashboard</button>
       <button class="tab" onclick="switchTab('izin',this)">Izin Keluar</button>
+      <button class="tab" onclick="switchTab('sesi',this)">🕐 Sesi Absensi</button>
       <button class="tab" onclick="switchTab('absensi',this)">Log Absensi</button>
       <button class="tab" onclick="switchTab('rekap',this)">Rekap</button>
       <button class="tab" onclick="switchTab('siswa',this)">Data Siswa</button>
@@ -230,6 +233,46 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div class="card">
         <div class="ct">⚠️ Siswa Sedang di Luar</div>
         <div id="izin-aktif-dash"><p class="empty">Tidak ada siswa di luar</p></div>
+      </div>
+    </div>
+
+    <!-- SESI ABSENSI (Dzuhur, Ekskul, dll) -->
+    <div id="tab-sesi" class="tab-pane">
+      <div class="g2">
+        <div class="card">
+          <div class="ct">🟢 Sesi Aktif Sekarang</div>
+          <div id="sesi-aktif-list"><p class="empty">Memuat...</p></div>
+
+          <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+            <div style="font-weight:600;margin-bottom:10px">Buka Sesi Baru</div>
+            <label style="font-size:12px;color:var(--muted)">NAMA SESI</label>
+            <input type="text" id="sesi-nama" placeholder="Contoh: Absen Dzuhur, Ekskul Sepak Bola" style="width:100%;margin-bottom:10px">
+
+            <label style="font-size:12px;color:var(--muted)">PILIH DEVICE (boleh lebih dari 1)</label>
+            <div id="sesi-device-list" style="margin-bottom:10px;padding:10px;border:1px solid var(--border);border-radius:8px;max-height:160px;overflow-y:auto">
+              <p class="empty" style="margin:0">Memuat daftar device...</p>
+            </div>
+
+            <button class="btn btn-g" style="width:100%" onclick="bukaSesi()">Buka Sesi Absensi</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ct">Riwayat Sesi Hari Ini</div>
+          <table>
+            <thead><tr><th>Nama Sesi</th><th>Device</th><th>Jam Buka</th><th>Jam Tutup</th><th>Tap</th><th>Status</th><th></th></tr></thead>
+            <tbody id="sesi-riwayat-tbody"><tr><td colspan="7" class="empty">Memuat...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Detail siswa yang tap di sesi tertentu -->
+      <div class="card" id="sesi-detail-card" style="display:none">
+        <div class="ct" id="sesi-detail-title">Detail Sesi</div>
+        <table>
+          <thead><tr><th>NIS</th><th>Nama</th><th>Kelas</th><th>Device</th><th>Jam Tap</th></tr></thead>
+          <tbody id="sesi-detail-tbody"></tbody>
+        </table>
       </div>
     </div>
 
@@ -620,13 +663,120 @@ function switchTab(name, btn) {
   document.getElementById('tab-'+name).classList.add('active');
   btn.classList.add('active');
   if (name === 'izin')    { loadIzin(); }
+  if (name === 'sesi')    { loadSesi(); }
   if (name === 'siswa')   { loadSiswa(); }
   if (name === 'absensi') { loadAbsensi(); }
   if (name === 'rekap')   { setRekapMode(rekapMode); }
   if (name === 'import')  { muatSiswaRfid(); }
 }
 
-// ===== DASHBOARD =====
+// ===== SESI ABSENSI (Dzuhur, Ekskul, dll) =====
+async function loadSesi() {
+  // Muat daftar device untuk checkbox
+  const devData = await api('/sesi.php?devices=1');
+  const devList = devData?.devices || [];
+  const devBox  = document.getElementById('sesi-device-list');
+
+  if (!devList.length) {
+    devBox.innerHTML = '<p class="empty" style="margin:0">Belum ada device yang pernah tap. Tap kartu dulu di alat untuk mendaftarkannya.</p>';
+  } else {
+    devBox.innerHTML = devList.map(d => `
+      <label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer">
+        <input type="checkbox" value="${d}" class="sesi-dev-cb">
+        <span class="mono">${d}</span>
+      </label>`).join('');
+  }
+
+  // Muat daftar sesi (aktif + riwayat)
+  const data = await api('/sesi.php');
+  const list = data?.data || [];
+
+  const aktif   = list.filter(s => s.status === 'aktif');
+  const riwayat = list;
+
+  // Sesi aktif
+  const elAktif = document.getElementById('sesi-aktif-list');
+  if (!aktif.length) {
+    elAktif.innerHTML = '<p class="empty">Tidak ada sesi aktif</p>';
+  } else {
+    elAktif.innerHTML = aktif.map(s => `
+      <div style="padding:12px;border:1px solid var(--green);border-radius:8px;margin-bottom:8px;background:var(--green-d)">
+        <div style="display:flex;justify-content:space-between;align-items:start">
+          <div>
+            <div style="font-weight:600">${s.nama_sesi}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px">
+              Device: ${s.devices.join(', ')}<br>
+              Dibuka ${s.jam_buka} oleh ${s.dibuka_oleh_nama} · ${s.total_tap} siswa tap
+            </div>
+          </div>
+          <button class="btn btn-r" style="padding:6px 12px;font-size:12px" onclick="tutupSesi(${s.id})">Tutup</button>
+        </div>
+      </div>`).join('');
+  }
+
+  // Riwayat sesi
+  const tbody = document.getElementById('sesi-riwayat-tbody');
+  if (!riwayat.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Belum ada sesi hari ini</td></tr>';
+  } else {
+    tbody.innerHTML = riwayat.map(s => `
+      <tr style="cursor:pointer" onclick="lihatDetailSesi(${s.id})">
+        <td>${s.nama_sesi}</td>
+        <td class="mono" style="font-size:12px">${s.devices.join(', ')}</td>
+        <td class="mono">${s.jam_buka}</td>
+        <td class="mono">${s.jam_tutup || '-'}</td>
+        <td>${s.total_tap}</td>
+        <td><span class="badge ${s.status==='aktif'?'badge-g':'badge-m'}">${s.status==='aktif'?'Aktif':'Selesai'}</span></td>
+        <td>${s.status==='aktif' ? `<button class="btn btn-r" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();tutupSesi(${s.id})">Tutup</button>` : ''}</td>
+      </tr>`).join('');
+  }
+}
+
+async function bukaSesi() {
+  const nama = document.getElementById('sesi-nama').value.trim();
+  const devices = Array.from(document.querySelectorAll('.sesi-dev-cb:checked')).map(cb => cb.value);
+
+  if (!nama) return alert('Isi nama sesi dulu');
+  if (!devices.length) return alert('Pilih minimal 1 device');
+
+  const res = await api('/sesi.php', 'POST', { nama_sesi: nama, devices });
+  if (res?.success) {
+    alert(res.pesan);
+    document.getElementById('sesi-nama').value = '';
+    loadSesi();
+  } else {
+    alert(res?.error || 'Gagal membuka sesi');
+  }
+}
+
+async function tutupSesi(id) {
+  if (!confirm('Tutup sesi ini? Device akan kembali netral untuk absen masuk/pulang.')) return;
+  const res = await api('/sesi.php?tutup=1', 'POST', { id });
+  if (res?.success) { loadSesi(); } else { alert(res?.error || 'Gagal menutup sesi'); }
+}
+
+async function lihatDetailSesi(id) {
+  const data = await api(`/sesi.php?id=${id}`);
+  if (!data) return;
+
+  document.getElementById('sesi-detail-card').style.display = 'block';
+  document.getElementById('sesi-detail-title').textContent = `Detail: ${data.nama_sesi} (${data.total_tap} siswa)`;
+
+  const tbody = document.getElementById('sesi-detail-tbody');
+  if (!data.tap_list.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">Belum ada siswa yang tap</td></tr>';
+  } else {
+    tbody.innerHTML = data.tap_list.map(t => `
+      <tr>
+        <td class="mono">${t.nis}</td><td>${t.nama}</td><td>${t.kelas}</td>
+        <td class="mono" style="font-size:12px">${t.device_id}</td>
+        <td class="mono">${t.waktu_tap}</td>
+      </tr>`).join('');
+  }
+  document.getElementById('sesi-detail-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+
 async function loadDashboard() {
   const data = await api('/dashboard.php');
   if (!data) return;
