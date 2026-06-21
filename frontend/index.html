@@ -456,7 +456,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
             <!-- Cari siswa -->
             <div style="margin-bottom:8px">
               <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:4px">Pilih Siswa</label>
-              <div style="display:flex;gap:6px">
+              <div style="display:flex;gap:6px;margin-bottom:6px">
+                <select id="rfid-kelas-filter" onchange="filterRfidSiswa()" style="padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit">
+                  <option value="">Semua Kelas</option>
+                </select>
                 <input id="rfid-cari" type="text" placeholder="Ketik nama atau NIS..." oninput="filterRfidSiswa()"
                   style="flex:1;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit">
                 <button class="btn btn-b" onclick="muatSiswaRfid()" style="white-space:nowrap;font-size:12px">🔄 Muat</button>
@@ -467,6 +470,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
             <div id="rfid-siswa-list" style="max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:10px;border:1px solid var(--border);border-radius:6px;padding:6px">
               <p style="font-size:13px;color:var(--muted);text-align:center;padding:.5rem">Klik tombol Muat untuk tampilkan daftar siswa</p>
             </div>
+
 
             <!-- Display UID -->
             <div id="rfid-display"
@@ -1430,13 +1434,33 @@ async function muatSiswaRfid() {
     '<p style="font-size:13px;color:var(--muted);text-align:center;padding:.5rem">⏳ Memuat data siswa...</p>';
   const data = await api('/siswa.php');
   if (!data) return;
-  rfidSiswaAll = data;
+
+  // Urutkan: kelas dulu (alfabet), lalu nama (alfabet)
+  rfidSiswaAll = data.slice().sort((a, b) => {
+    const k = a.kelas.localeCompare(b.kelas, undefined, {numeric:true});
+    if (k !== 0) return k;
+    return a.nama.localeCompare(b.nama);
+  });
+
+  // Isi dropdown filter kelas dari kelas yang benar-benar ada
+  const kelasUnik = [...new Set(rfidSiswaAll.map(s => s.kelas))].sort((a,b) => a.localeCompare(b, undefined, {numeric:true}));
+  const sel = document.getElementById('rfid-kelas-filter');
+  const kelasSekarang = sel.value;
+  sel.innerHTML = '<option value="">Semua Kelas</option>' + kelasUnik.map(k => `<option value="${k}">${k}</option>`).join('');
+  sel.value = kelasUnik.includes(kelasSekarang) ? kelasSekarang : '';
+
   filterRfidSiswa();
 }
 
 function filterRfidSiswa() {
-  const q = document.getElementById('rfid-cari').value.toLowerCase().trim();
-  renderRfidList(q ? rfidSiswaAll.filter(s => s.nama.toLowerCase().includes(q) || s.nis.includes(q)) : rfidSiswaAll);
+  const q     = document.getElementById('rfid-cari').value.toLowerCase().trim();
+  const kelas = document.getElementById('rfid-kelas-filter').value;
+
+  let list = rfidSiswaAll;
+  if (kelas) list = list.filter(s => s.kelas === kelas);
+  if (q)     list = list.filter(s => s.nama.toLowerCase().includes(q) || s.nis.includes(q));
+
+  renderRfidList(list);
 }
 
 function renderRfidList(list) {
