@@ -1,33 +1,53 @@
 <?php
 
-// api/login.php
+/**
+ * POST /api/login.php
+ * Login endpoint dengan validation & response yang konsisten
+ */
 
 require_once '../config.php';
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') jsonResponse(['error' => 'Method tidak didukung'], 405);
+// Check method
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    Response::methodNotAllowed();
+}
 
-$body     = getBody();
-$username = trim($body['username'] ?? '');
-$password = trim($body['password'] ?? '');
+// Get request body
+$body = getBody();
 
-if (!$username || !$password) jsonResponse(['error' => 'Username dan password wajib'], 400);
+// Validate input
+$rules = [
+    'username' => ['required' => true, 'min' => 1],
+    'password' => ['required' => true, 'min' => 1]
+];
 
-$db   = getDB();
-$stmt = $db->prepare('SELECT * FROM users WHERE username = ? AND aktif = 1');
-$stmt->bind_param('s', $username);
-$stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
-$stmt->close();
-$db->close();
+if (!Validator::validate($body, $rules)) {
+    Response::validationError(Validator::errors());
+}
 
-if (!$user || !password_verify($password, $user['password']))
-    jsonResponse(['error' => 'Username atau password salah'], 401);
+$username = trim($body['username']);
+$password = trim($body['password']);
 
-$token = buatToken([
-    'id'       => $user['id'],
-    'username' => $user['username'],
-    'role'     => $user['role'],
-    'exp'      => time() + (8 * 3600)
-]);
+// Query user
+$db = Database::getInstance();
+$user = $db->fetchOne(
+    'SELECT id, username, nama, role, password FROM users WHERE username = ? AND aktif = 1',
+    [$username],
+    's'
+);
 
-jsonResponse(['token' => $token, 'nama' => $user['nama'], 'role' => $user['role']]);
+// Check user exists & password valid
+if (!$user || !password_verify($password, $user['password'])) {
+    Response::error('Username atau password salah', 401);
+}
+
+// Create token
+$token = Token::forUser($user['id'], $user['username'], $user['role'], 8);
+
+// Response success
+Response::success([
+    'token' => $token,
+    'nama' => $user['nama'],
+    'role' => $user['role']
+], 'Login berhasil');
+
