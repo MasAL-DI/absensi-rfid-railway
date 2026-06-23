@@ -1,109 +1,88 @@
 <?php
 
-/**
- * ============================================================
- * BOOTSTRAP & CONFIGURATION
- * ============================================================
- * Load helpers dan konfigurasi aplikasi
- */
+// ===== CORS — harus paling atas, sebelum output apapun =====
+$allowedOrigins = [
+    'https://absensi-rfid-railway.vercel.app',
+    'http://localhost',
+    'http://localhost:3000',
+    'http://127.0.0.1',
+];
 
-// ===== SETUP AWAL =====
-date_default_timezone_set('Asia/Jakarta');
-ini_set('display_errors', 0);
-error_reporting(E_ALL);
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
-// ===== LOAD HELPERS =====
-require_once __DIR__ . '/helpers/Response.php';
-require_once __DIR__ . '/helpers/Validator.php';
-require_once __DIR__ . '/helpers/Database.php';
-require_once __DIR__ . '/helpers/Token.php';
-
-// ===== CORS HANDLER =====
-function setupCors() {
-    // Default trusted origins
-    $allowedOrigins = [
-        'https://absensi-rfid-railway.vercel.app',
-        'http://localhost',
-        'http://localhost:3000',
-        'http://127.0.0.1',
-    ];
-
-    // Allow overriding via environment variable (comma-separated)
-    $envOrigins = getenv('CORS_ORIGINS') ?: '';
-    if ($envOrigins) {
-        $parts = array_map('trim', explode(',', $envOrigins));
-        foreach ($parts as $p) {
-            if ($p !== '') $allowedOrigins[] = $p;
-        }
-        // make unique
-        $allowedOrigins = array_values(array_unique($allowedOrigins));
-    }
-
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-
-    if ($origin && in_array($origin, $allowedOrigins, true)) {
-        header("Access-Control-Allow-Origin: $origin");
-        header('Vary: Origin');
-    } else {
-        // non-browser clients (ESP32, curl) may not send Origin — allow all for those
-        // but in production you may want to restrict this further.
-        header('Access-Control-Allow-Origin: *');
-    }
-
-    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, Authorization');
-    header('Access-Control-Max-Age: 86400');
-
-    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-        http_response_code(204);
-        exit;
-    }
+if (in_array($origin, $allowedOrigins, true)) {
+    header("Access-Control-Allow-Origin: $origin");
+    header('Vary: Origin');
+} else {
+    // non-browser (ESP32, Postman, curl) tidak kirim Origin → izinkan semua
+    header('Access-Control-Allow-Origin: *');
 }
 
-// ===== HELPER FUNCTIONS (Backward compatibility) =====
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Max-Age: 86400');
 
-/**
- * Get request body
- */
+// Preflight OPTIONS → balas langsung, jangan lanjut ke logika apapun
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+// ===== END CORS =====
+
+date_default_timezone_set('Asia/Jakarta');
+
+define('DB_HOST',     getenv('MYSQLHOST')     ?: 'localhost');
+define('DB_USER',     getenv('MYSQLUSER')     ?: 'root');
+define('DB_PASSWORD', getenv('MYSQLPASSWORD') ?: '');
+define('DB_NAME',     getenv('MYSQLDATABASE') ?: 'db_absensi');
+define('DB_PORT',     getenv('MYSQLPORT')     ?: 3306);
+
+define('JWT_SECRET',  getenv('JWT_SECRET')    ?: 'rahasia_absensi_smkn1pabelan');
+
+function getDB() {
+    $conn = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT);
+    if ($conn->connect_error) {
+        http_response_code(500);
+        die(json_encode(['error' => 'Koneksi database gagal: ' . $conn->connect_error]));
+    }
+    $conn->set_charset('utf8mb4');
+    return $conn;
+}
+
+function jsonResponse($data, $code = 200) {
+    http_response_code($code);
+    header('Content-Type: application/json');
+    echo json_encode($data, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 function getBody() {
     return json_decode(file_get_contents('php://input'), true) ?? [];
 }
 
-/**
- * Get database connection (backward compatible)
- * Recommendation: Gunakan Database::getInstance() langsung di endpoint baru
- */
-function getDB() {
-    return Database::getInstance()->getConnection();
-}
-
-/**
- * Legacy: jsonResponse (gunakan Response class instead)
- */
-function jsonResponse($data, $code = 200) {
-    Response::json($data, $code);
-}
-
-/**
- * Legacy: buatToken (gunakan Token::create() instead)
- */
 function buatToken($payload) {
-    return Token::create($payload);
+    $header  = rtrim(base64_encode(json_encode(['alg'=>'HS256','typ'=>'JWT'])), '=');
+    $payload = rtrim(base64_encode(json_encode($payload)), '=');
+    $sig     = rtrim(base64_encode(hash_hmac('sha256', "$header.$payload", JWT_SECRET, true)), '=');
+    return "$header.$payload.$sig";
 }
 
-/**
- * Legacy: verifikasiToken (gunakan Token::verify() instead)
- */
 function verifikasiToken($token) {
-    return Token::verify($token);
+    $parts = explode('.', $token);
+    if (count($parts) !== 3) return false;
+    [$header, $payload, $sig] = $parts;
+    $validSig = rtrim(base64_encode(hash_hmac('sha256', "$header.$payload", JWT_SECRET, true)), '=');
+    if ($sig !== $validSig) return false;
+    $data = json_decode(base64_decode($payload), true);
+    if (isset($data['exp']) && $data['exp'] < time()) return false;
+    return $data;
 }
 
-/**
- * Legacy: cekAuth (gunakan Token::verifyOrFail() instead)
- */
 function cekAuth() {
-    return Token::verifyOrFail();
+    $headers = getallheaders();
+    $auth    = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+    $token   = str_replace('Bearer ', '', $auth);
+    $user    = verifikasiToken($token);
+    if (!$user) jsonResponse(['error' => 'Token tidak valid atau kadaluarsa'], 401);
+    return $user;
 }
-
-// ===== RUN CORS SETUP =====
-setupCors();

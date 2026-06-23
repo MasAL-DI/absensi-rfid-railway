@@ -1,53 +1,33 @@
 <?php
 
-/**
- * POST /api/login.php
- * Login endpoint dengan validation & response yang konsisten
- */
+// api/login.php
 
 require_once '../config.php';
 
-// Check method
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    Response::methodNotAllowed();
-}
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') jsonResponse(['error' => 'Method tidak didukung'], 405);
 
-// Get request body
-$body = getBody();
+$body     = getBody();
+$username = trim($body['username'] ?? '');
+$password = trim($body['password'] ?? '');
 
-// Validate input
-$rules = [
-    'username' => ['required' => true, 'min' => 1],
-    'password' => ['required' => true, 'min' => 1]
-];
+if (!$username || !$password) jsonResponse(['error' => 'Username dan password wajib'], 400);
 
-if (!Validator::validate($body, $rules)) {
-    Response::validationError(Validator::errors());
-}
+$db   = getDB();
+$stmt = $db->prepare('SELECT * FROM users WHERE username = ? AND aktif = 1');
+$stmt->bind_param('s', $username);
+$stmt->execute();
+$user = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+$db->close();
 
-$username = trim($body['username']);
-$password = trim($body['password']);
+if (!$user || !password_verify($password, $user['password']))
+    jsonResponse(['error' => 'Username atau password salah'], 401);
 
-// Query user
-$db = Database::getInstance();
-$user = $db->fetchOne(
-    'SELECT id, username, nama, role, password FROM users WHERE username = ? AND aktif = 1',
-    [$username],
-    's'
-);
+$token = buatToken([
+    'id'       => $user['id'],
+    'username' => $user['username'],
+    'role'     => $user['role'],
+    'exp'      => time() + (8 * 3600)
+]);
 
-// Check user exists & password valid
-if (!$user || !password_verify($password, $user['password'])) {
-    Response::error('Username atau password salah', 401);
-}
-
-// Create token
-$token = Token::forUser($user['id'], $user['username'], $user['role'], 8);
-
-// Response success
-Response::success([
-    'token' => $token,
-    'nama' => $user['nama'],
-    'role' => $user['role']
-], 'Login berhasil');
-
+jsonResponse(['token' => $token, 'nama' => $user['nama'], 'role' => $user['role']]);
