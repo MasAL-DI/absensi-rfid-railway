@@ -166,8 +166,44 @@ tr:hover td{background:rgba(255,255,255,.02)}
 </head>
 <body>
 
+<!-- MODE PUBLIK (tanpa login, read-only) -->
+<div id="publik">
+  <div class="topbar">
+    <div class="topbar-l">
+      <div class="tlogo">🏫</div>
+      <h1>Absensi RFID — SMKN 1 Pabelan</h1>
+    </div>
+    <div class="topbar-r">
+      <span class="tclock" id="tclock-publik"></span>
+      <button class="btn-theme" onclick="toggleTheme()" id="btn-theme-publik" title="Ganti tema">🌙</button>
+      <button class="btn-out" onclick="tampilLogin()" style="background:var(--green-d);color:var(--green);border-color:#1a4a23">🔑 Login Admin</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="stats">
+      <div class="sc g"><div class="sl">Hadir</div><div class="sv" id="p-hadir">—</div><div class="ss">tap masuk hari ini</div></div>
+      <div class="sc a"><div class="sl">Terlambat</div><div class="sv" id="p-terlambat">—</div><div class="ss">lewat batas waktu</div></div>
+      <div class="sc r"><div class="sl">Alpha</div><div class="sv" id="p-alpha">—</div><div class="ss">belum tap masuk</div></div>
+      <div class="sc b"><div class="sl">Sudah Pulang</div><div class="sv" id="p-pulang">—</div><div class="ss">tap pulang hari ini</div></div>
+    </div>
+
+    <div class="card">
+      <div class="ct">Kehadiran Per Kelas — <span id="p-tanggal"></span></div>
+      <table>
+        <thead><tr><th>Kelas</th><th>Total</th><th>Hadir</th><th>Terlambat</th><th>Alpha</th></tr></thead>
+        <tbody id="p-perkelas-tbody"><tr><td colspan="5" class="empty">Memuat...</td></tr></tbody>
+      </table>
+    </div>
+
+    <p style="text-align:center;color:var(--muted);font-size:12px;margin-top:16px">
+      Halaman ini tidak menampilkan nama siswa · Data diperbarui otomatis
+    </p>
+  </div>
+</div>
+
 <!-- LOGIN -->
-<div id="login">
+<div id="login" style="display:none">
   <div class="lcard">
     <h2>🏫 Absensi RFID</h2>
     <p>SMKN 1 Pabelan — Sistem Absensi Gerbang</p>
@@ -175,6 +211,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="fg"><label>Username</label><input id="lu" type="text" placeholder="admin" autocomplete="username"></div>
     <div class="fg"><label>Password</label><input id="lp" type="password" placeholder="••••••••" autocomplete="current-password"></div>
     <button class="btn-login" onclick="doLogin()">Masuk</button>
+    <button class="btn-login" onclick="tampilPublik()" style="background:var(--surface2);color:var(--muted);margin-top:8px">← Kembali ke tampilan publik</button>
   </div>
 </div>
 
@@ -201,6 +238,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <button class="tab" onclick="switchTab('sesi',this)">🕐 Sesi Absensi</button>
       <button class="tab" onclick="switchTab('absensi',this)">Log Absensi</button>
       <button class="tab" onclick="switchTab('rekap',this)">Rekap</button>
+      <button class="tab" onclick="switchTab('perpus',this)">📚 Perpustakaan</button>
       <button class="tab" onclick="switchTab('siswa',this)">Data Siswa</button>
       <button class="tab" onclick="switchTab('import',this)">📥 Import Data</button>
     </div>
@@ -366,6 +404,45 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
     </div>
 
+    <!-- PERPUSTAKAAN -->
+    <div id="tab-perpus" class="tab-pane">
+      <div class="g2">
+        <div class="card">
+          <div class="ct">📋 Menunggu Diisi Judul Buku</div>
+          <div id="perpus-pending-list"><p class="empty">Memuat...</p></div>
+        </div>
+
+        <div class="card">
+          <div class="ct">📖 Sedang Dipinjam</div>
+          <table>
+            <thead><tr><th>NIS</th><th>Nama</th><th>Judul</th><th>Tgl Pinjam</th><th></th></tr></thead>
+            <tbody id="perpus-dipinjam-tbody"><tr><td colspan="5" class="empty">Memuat...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ct">📜 Riwayat Pengembalian</div>
+        <table>
+          <thead><tr><th>NIS</th><th>Nama</th><th>Judul</th><th>Tgl Pinjam</th><th>Tgl Kembali</th><th>Dicatat Oleh</th></tr></thead>
+          <tbody id="perpus-riwayat-tbody"><tr><td colspan="6" class="empty">Memuat...</td></tr></tbody>
+        </table>
+      </div>
+
+      <!-- Modal sederhana isi judul buku -->
+      <div id="perpus-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;align-items:center;justify-content:center">
+        <div class="card" style="max-width:380px;width:90%">
+          <div class="ct">Input Judul Buku</div>
+          <p id="perpus-modal-nama" style="font-size:14px;margin-bottom:10px;color:var(--muted)"></p>
+          <input type="text" id="perpus-modal-judul" placeholder="Judul buku..." style="width:100%;margin-bottom:10px">
+          <div style="display:flex;gap:8px">
+            <button class="btn" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text)" onclick="tutupModalPerpus()">Batal</button>
+            <button class="btn btn-g" style="flex:1" onclick="simpanPeminjaman()">Simpan</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- IMPORT DATA -->
     <div id="tab-import" class="tab-pane">
       <div class="g2">
@@ -456,12 +533,12 @@ tr:hover td{background:rgba(255,255,255,.02)}
             <!-- Cari siswa -->
             <div style="margin-bottom:8px">
               <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:4px">Pilih Siswa</label>
-              <div style="display:flex;gap:6px;margin-bottom:6px">
-                <select id="rfid-kelas-filter" onchange="filterRfidSiswa()" style="padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit">
+              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+                <select id="rfid-kelas-filter" onchange="filterRfidSiswa()" style="flex:0 0 130px;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit">
                   <option value="">Semua Kelas</option>
                 </select>
                 <input id="rfid-cari" type="text" placeholder="Ketik nama atau NIS..." oninput="filterRfidSiswa()"
-                  style="flex:1;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit">
+                  style="flex:1;min-width:140px;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit">
                 <button class="btn btn-b" onclick="muatSiswaRfid()" style="white-space:nowrap;font-size:12px">🔄 Muat</button>
               </div>
             </div>
@@ -571,7 +648,11 @@ setInterval(updateClock, 1000);
 // ===== THEME =====
 function toggleTheme() {
   const isLight = document.body.classList.toggle('light');
-  document.getElementById('btn-theme').textContent = isLight ? '🌑' : '🌙';
+  const icon = isLight ? '🌑' : '🌙';
+  const b1 = document.getElementById('btn-theme');
+  const b2 = document.getElementById('btn-theme-publik');
+  if (b1) b1.textContent = icon;
+  if (b2) b2.textContent = icon;
   localStorage.setItem('rfid_theme', isLight ? 'light' : 'dark');
 }
 
@@ -587,11 +668,14 @@ function today()     { return new Date().toISOString().split('T')[0]; }
 function thisMonth() { return new Date().toISOString().substring(0, 7); }
 
 function updateClock() {
-  const el = document.getElementById('tclock');
-  if (el) el.textContent = new Date().toLocaleString('id-ID', {
+  const txt = new Date().toLocaleString('id-ID', {
     weekday:'short', day:'numeric', month:'short',
     hour:'2-digit', minute:'2-digit', second:'2-digit'
   });
+  const el  = document.getElementById('tclock');
+  const elP = document.getElementById('tclock-publik');
+  if (el)  el.textContent  = txt;
+  if (elP) elP.textContent = txt;
 }
 
 // ===== AUTH =====
@@ -612,6 +696,7 @@ async function doLogin() {
       localStorage.setItem('rfid_user',  JSON.stringify(userData));
       document.getElementById('tuser').textContent = data.nama;
       document.getElementById('trole').textContent = data.role;
+      document.getElementById('publik').style.display = 'none';
       document.getElementById('login').style.display = 'none';
       document.getElementById('app').style.display   = 'block';
       initApp();
@@ -623,8 +708,57 @@ async function doLogin() {
 
 function doLogout() {
   token = ''; localStorage.removeItem('rfid_token'); localStorage.removeItem('rfid_user');
-  document.getElementById('login').style.display = 'flex';
   document.getElementById('app').style.display   = 'none';
+  document.getElementById('login').style.display = 'none';
+  tampilPublik();
+}
+
+// ===== NAVIGASI ANTAR MODE (publik / login / app) =====
+function tampilPublik() {
+  document.getElementById('login').style.display  = 'none';
+  document.getElementById('app').style.display    = 'none';
+  document.getElementById('publik').style.display = 'block';
+  loadPublikData();
+}
+
+function tampilLogin() {
+  document.getElementById('publik').style.display = 'none';
+  document.getElementById('app').style.display     = 'none';
+  document.getElementById('login').style.display   = 'flex';
+  document.getElementById('lu').focus();
+}
+
+async function loadPublikData() {
+  try {
+    const res  = await fetch(API + '/publik.php');
+    const data = await res.json();
+    const s = data.stats || {};
+
+    document.getElementById('p-hadir').textContent      = s.hadir || 0;
+    document.getElementById('p-terlambat').textContent  = s.terlambat || 0;
+    document.getElementById('p-alpha').textContent      = s.alpha || 0;
+    document.getElementById('p-pulang').textContent     = s.sudah_pulang || 0;
+    document.getElementById('p-tanggal').textContent    = new Date(data.tanggal).toLocaleDateString('id-ID', {
+      weekday:'long', day:'numeric', month:'long', year:'numeric'
+    });
+
+    const tbody = document.getElementById('p-perkelas-tbody');
+    const perKelas = data.perKelas || [];
+    if (!perKelas.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">Belum ada data</td></tr>';
+    } else {
+      tbody.innerHTML = perKelas.map(k => `
+        <tr>
+          <td><b>${k.kelas}</b></td>
+          <td>${k.total_siswa}</td>
+          <td style="color:var(--green);font-weight:600">${k.hadir||0}</td>
+          <td style="color:var(--amber);font-weight:600">${k.terlambat||0}</td>
+          <td style="color:var(--red);font-weight:600">${k.alpha||0}</td>
+        </tr>`).join('');
+    }
+  } catch {
+    document.getElementById('p-perkelas-tbody').innerHTML = '<tr><td colspan="5" class="empty">Gagal memuat data</td></tr>';
+  }
 }
 
 // ===== API =====
@@ -644,6 +778,7 @@ async function initApp() {
   // Set ikon tema sesuai preferensi tersimpan
   const btn = document.getElementById('btn-theme');
   if (btn) btn.textContent = document.body.classList.contains('light') ? '🌑' : '🌙';
+
   await loadKelas();
   loadDashboard();
   loadIzin();
@@ -671,10 +806,95 @@ function switchTab(name, btn) {
   if (name === 'siswa')   { loadSiswa(); }
   if (name === 'absensi') { loadAbsensi(); }
   if (name === 'rekap')   { setRekapMode(rekapMode); }
+  if (name === 'perpus')  { loadPerpus(); }
   if (name === 'import')  { muatSiswaRfid(); }
 }
 
-// ===== SESI ABSENSI (Dzuhur, Ekskul, dll) =====
+// ===== PERPUSTAKAAN =====
+let perpusTapIdAktif = null;
+
+async function loadPerpus() {
+  const data = await api('/perpus.php');
+
+  // Daftar tap menunggu diisi judul
+  const elPending = document.getElementById('perpus-pending-list');
+  const pending = data?.pending || [];
+  if (!pending.length) {
+    elPending.innerHTML = '<p class="empty">Tidak ada yang menunggu</p>';
+  } else {
+    elPending.innerHTML = pending.map(p => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px">
+        <div>
+          <div style="font-weight:600">${p.nama}</div>
+          <div style="font-size:12px;color:var(--muted)">${p.kelas} · ${p.nis} · tap ${p.waktu_tap.split(' ')[1]||''}</div>
+        </div>
+        <button class="btn btn-g" style="padding:6px 12px;font-size:12px" onclick="bukaModalPerpus(${p.tap_id}, '${p.nama.replace(/'/g,"")}')">Isi Judul</button>
+      </div>`).join('');
+  }
+
+  // Daftar sedang dipinjam
+  const tbody = document.getElementById('perpus-dipinjam-tbody');
+  const dipinjam = data?.dipinjam || [];
+  if (!dipinjam.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">Tidak ada buku dipinjam</td></tr>';
+  } else {
+    tbody.innerHTML = dipinjam.map(d => `
+      <tr>
+        <td class="mono">${d.nis}</td><td>${d.nama}</td><td>${d.judul_buku}</td>
+        <td class="mono">${d.tanggal_pinjam}</td>
+        <td><button class="btn btn-g" style="padding:4px 10px;font-size:11px" onclick="kembalikanBuku(${d.id})">Kembali</button></td>
+      </tr>`).join('');
+  }
+
+  // Riwayat
+  const riwayat = await api('/perpus.php?riwayat=1');
+  const tbR = document.getElementById('perpus-riwayat-tbody');
+  const rData = riwayat?.data || [];
+  if (!rData.length) {
+    tbR.innerHTML = '<tr><td colspan="6" class="empty">Belum ada riwayat</td></tr>';
+  } else {
+    tbR.innerHTML = rData.map(r => `
+      <tr>
+        <td class="mono">${r.nis}</td><td>${r.nama}</td><td>${r.judul_buku}</td>
+        <td class="mono">${r.tanggal_pinjam}</td><td class="mono">${r.tanggal_kembali}</td>
+        <td style="font-size:12px;color:var(--muted)">${r.dicatat_oleh_nama}</td>
+      </tr>`).join('');
+  }
+}
+
+function bukaModalPerpus(tapId, nama) {
+  perpusTapIdAktif = tapId;
+  document.getElementById('perpus-modal-nama').textContent = `Siswa: ${nama}`;
+  document.getElementById('perpus-modal-judul').value = '';
+  document.getElementById('perpus-modal').style.display = 'flex';
+}
+
+function tutupModalPerpus() {
+  document.getElementById('perpus-modal').style.display = 'none';
+  perpusTapIdAktif = null;
+}
+
+async function simpanPeminjaman() {
+  const judul = document.getElementById('perpus-modal-judul').value.trim();
+  if (!judul) return alert('Isi judul buku dulu');
+  if (!perpusTapIdAktif) return;
+
+  const res = await api('/perpus.php', 'POST', { tap_id: perpusTapIdAktif, judul_buku: judul });
+  if (res?.success) {
+    tutupModalPerpus();
+    loadPerpus();
+  } else {
+    alert(res?.error || 'Gagal menyimpan');
+  }
+}
+
+async function kembalikanBuku(id) {
+  if (!confirm('Tandai buku ini sudah dikembalikan?')) return;
+  const res = await api('/perpus.php?kembali=1', 'POST', { id });
+  if (res?.success) { loadPerpus(); } else { alert(res?.error || 'Gagal'); }
+}
+
+
 async function loadSesi() {
   // Muat daftar device untuk checkbox
   const devData = await api('/sesi.php?devices=1');
@@ -1435,11 +1655,11 @@ async function muatSiswaRfid() {
   const data = await api('/siswa.php');
   if (!data) return;
 
-  // Urutkan: kelas dulu (alfabet), lalu nama (alfabet)
+  // Urutkan: kelas dulu (alfanumerik), lalu nama (alfanumerik)
   rfidSiswaAll = data.slice().sort((a, b) => {
-    const k = a.kelas.localeCompare(b.kelas, undefined, {numeric:true});
+    const k = a.kelas.localeCompare(b.kelas, undefined, {numeric:true, sensitivity:'base'});
     if (k !== 0) return k;
-    return a.nama.localeCompare(b.nama);
+    return a.nama.localeCompare(b.nama, undefined, {numeric:true, sensitivity:'base'});
   });
 
   // Isi dropdown filter kelas dari kelas yang benar-benar ada
@@ -1571,15 +1791,25 @@ async function simpanUID() {
 }
 
 function hideRfidMsg() { ['rfid-msg-ok','rfid-msg-err'].forEach(id => document.getElementById(id).style.display='none'); }
-  document.getElementById('login').style.display = 'none';
-  document.getElementById('app').style.display   = 'block';
+
+// ===== STARTUP: pilih mode awal =====
+if (token) {
+  // Sudah pernah login sebelumnya & token tersimpan → langsung masuk app
+  document.getElementById('publik').style.display = 'none';
+  document.getElementById('login').style.display  = 'none';
+  document.getElementById('app').style.display    = 'block';
   initApp();
-  
+} else {
+  // Belum login → tampilkan mode publik (read-only, tanpa nama siswa)
+  tampilPublik();
+}
+
 document.getElementById('lp').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
 
 setInterval(() => {
   if (document.querySelector('#tab-dashboard.active')) loadDashboard();
   if (document.querySelector('#tab-izin.active'))      loadIzin();
+  if (document.getElementById('publik').style.display !== 'none') loadPublikData();
 }, 30000);
 </script>
 </body>
