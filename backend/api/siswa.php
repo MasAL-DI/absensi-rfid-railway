@@ -3,7 +3,7 @@ require_once '../config.php';
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
-    cekAuth();
+    cekAuth(); // viewer & admin boleh lihat data siswa
     $kelas = $_GET['kelas'] ?? '';
     $db    = getDB();
     $query = 'SELECT id,nis,nama,kelas,jk,uid_rfid,hp_ortu FROM siswa WHERE aktif=1';
@@ -21,7 +21,7 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
-    cekAuth();
+    cekAdmin();
     $body = getBody();
     $nis  = trim($body['nis'] ?? ''); $nama = trim($body['nama'] ?? '');
     $kelas= trim($body['kelas'] ?? ''); $jk = trim($body['jk'] ?? 'L');

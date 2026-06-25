@@ -86,3 +86,14 @@ function cekAuth() {
     if (!$user) jsonResponse(['error' => 'Token tidak valid atau kadaluarsa'], 401);
     return $user;
 }
+
+// Dipakai di endpoint yang HANYA boleh diakses admin
+// (kelola siswa, import data, buka/tutup sesi, kelola peminjaman buku, dll)
+// Role 'viewer' hanya boleh GET data, tidak boleh ubah apapun yang penting.
+function cekAdmin() {
+    $user = cekAuth();
+    if (($user['role'] ?? '') !== 'admin') {
+        jsonResponse(['error' => 'Akses ditolak. Hanya admin yang boleh melakukan ini.'], 403);
+    }
+    return $user;
+}

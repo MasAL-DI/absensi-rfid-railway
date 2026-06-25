@@ -1,14 +1,22 @@
 <?php
+// api/sesi.php
+// GET  /api/sesi.php                  → daftar sesi (aktif + riwayat hari ini)
+// GET  /api/sesi.php?id=5             → detail 1 sesi + daftar siswa yang tap
+// POST /api/sesi.php                  → buka sesi baru
+// POST /api/sesi.php?tutup=1          → tutup sesi { id }
 
 require_once '../config.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
-$user   = cekAuth();
+$user   = cekAuth(); // GET boleh viewer & admin; POST dicek cekAdmin() di bawah
 
-
+// ============================================================
+// GET — daftar sesi / detail sesi / daftar device
+// ============================================================
 if ($method === 'GET') {
     $db = getDB();
 
+    // Daftar semua device_id yang pernah tercatat (dari absensi & tap_sesi)
     if (isset($_GET['devices'])) {
         $rows1 = $db->query('SELECT DISTINCT device_id FROM absensi WHERE device_id IS NOT NULL AND device_id != ""')->fetch_all(MYSQLI_ASSOC);
         $rows2 = $db->query('SELECT DISTINCT device_id FROM tap_sesi WHERE device_id IS NOT NULL AND device_id != ""')->fetch_all(MYSQLI_ASSOC);
@@ -18,6 +26,7 @@ if ($method === 'GET') {
         jsonResponse(['devices' => array_values($all)]);
     }
 
+    // Detail 1 sesi + siapa saja yang sudah tap
     if (isset($_GET['id'])) {
         $id = intval($_GET['id']);
 
@@ -88,7 +97,11 @@ if ($method === 'GET') {
     jsonResponse(['tanggal' => $tanggal, 'data' => $list]);
 }
 
+// ============================================================
+// POST — buka sesi baru ATAU tutup sesi
+// ============================================================
 if ($method === 'POST') {
+    cekAdmin(); // hanya admin yang boleh buka/tutup sesi
     $body = getBody();
     $db   = getDB();
 

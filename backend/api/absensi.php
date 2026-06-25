@@ -32,6 +32,35 @@ if ($method === 'POST') {
     $tanggal = date('Y-m-d');
     $waktu   = date('H:i:s');
 
+    // ===== CEK: APAKAH DEVICE INI DEVICE PERPUSTAKAAN PERMANEN =====
+    // Device perpus TIDAK ikut absen masuk/pulang atau sesi sama sekali.
+    // Setiap tap di device ini langsung masuk antrian "menunggu judul buku".
+    if ($deviceId) {
+        $stmt = $db->prepare('SELECT 1 FROM device_perpus WHERE device_id = ?');
+        $stmt->bind_param('s', $deviceId);
+        $stmt->execute();
+        $isPerpus = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if ($isPerpus) {
+            $waktuLengkap = date('Y-m-d H:i:s');
+            $stmt = $db->prepare(
+                'INSERT INTO tap_perpus_pending (siswa_id, device_id, waktu_tap, selesai) VALUES (?, ?, ?, 0)'
+            );
+            $stmt->bind_param('iss', $siswa['id'], $deviceId, $waktuLengkap);
+            $stmt->execute();
+            $stmt->close();
+            $db->close();
+
+            jsonResponse([
+                'status' => 'tap_perpus',
+                'nama'   => $siswa['nama'],
+                'pesan'  => 'Silakan tunggu, petugas akan input buku'
+            ]);
+        }
+    }
+    // ===== END CEK DEVICE PERPUS =====
+
     // ===== CEK SESI AKTIF DI DEVICE INI (dzuhur, ekskul, dll) =====
     // Kalau device sedang dipakai sesi khusus, tap TIDAK diproses sebagai
     // absen masuk/pulang biasa — langsung dicatat ke sesi tersebut.
