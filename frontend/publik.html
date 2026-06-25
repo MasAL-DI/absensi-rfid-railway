@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Absensi Hari Ini — SMKN 1 Pabelan</title>
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --border: #30363d;
+  --text: #e6edf3; --muted: #7d8590;
+  --green: #3fb950; --amber: #d29922; --red: #f85149; --blue: #58a6ff;
+  --green-d: #0d2a14; --amber-d: #2d1f00; --red-d: #2d0f0e; --blue-d: #0c1e3a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px}
+.wrap{max-width:900px;margin:0 auto}
+.header{text-align:center;margin-bottom:28px}
+.header h1{font-size:22px;margin-bottom:4px}
+.header p{color:var(--muted);font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:28px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center}
+.stat-card .num{font-size:32px;font-weight:700;margin-bottom:4px}
+.stat-card .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.stat-card.hadir .num{color:var(--green)}
+.stat-card.terlambat .num{color:var(--amber)}
+.stat-card.alpha .num{color:var(--red)}
+.stat-card.pulang .num{color:var(--blue)}
+table{width:100%;border-collapse:collapse;background:var(--surface);border-radius:12px;overflow:hidden;border:1px solid var(--border)}
+th{text-align:left;padding:12px 14px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)}
+td{padding:12px 14px;border-bottom:1px solid var(--border);font-size:14px}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px}
+.badge.h{background:var(--green-d);color:var(--green)}
+.badge.t{background:var(--amber-d);color:var(--amber)}
+.badge.a{background:var(--red-d);color:var(--red)}
+.footer{text-align:center;margin-top:24px;color:var(--muted);font-size:12px}
+.loading{text-align:center;padding:40px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>📊 Absensi Hari Ini</h1>
+    <p>SMKN 1 Pabelan · <span id="tgl"></span></p>
+  </div>
+
+  <div id="content" class="loading">Memuat data...</div>
+
+  <div class="footer">Data diperbarui otomatis tiap 60 detik · Halaman ini tidak menampilkan nama siswa</div>
+</div>
+
+<script>
+const API_BASE = 'https://absensi-rfid-railway-production.up.railway.app/api';
+
+async function load() {
+  try {
+    const res = await fetch(`${API_BASE}/publik.php`);
+    const data = await res.json();
+
+    document.getElementById('tgl').textContent = new Date(data.tanggal).toLocaleDateString('id-ID', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+
+    const s = data.stats || {};
+    const perKelas = data.perKelas || [];
+
+    document.getElementById('content').innerHTML = `
+      <div class="stats">
+        <div class="stat-card hadir"><div class="num">${s.hadir||0}</div><div class="label">Hadir</div></div>
+        <div class="stat-card terlambat"><div class="num">${s.terlambat||0}</div><div class="label">Terlambat</div></div>
+        <div class="stat-card alpha"><div class="num">${s.alpha||0}</div><div class="label">Alpha</div></div>
+        <div class="stat-card pulang"><div class="num">${s.sudah_pulang||0}</div><div class="label">Sudah Pulang</div></div>
+      </div>
+      <table>
+        <thead><tr><th>Kelas</th><th>Total Siswa</th><th>Hadir</th><th>Terlambat</th><th>Alpha</th></tr></thead>
+        <tbody>
+          ${perKelas.map(k => `
+            <tr>
+              <td><b>${k.kelas}</b></td>
+              <td>${k.total_siswa}</td>
+              <td><span class="badge h">${k.hadir||0}</span></td>
+              <td><span class="badge t">${k.terlambat||0}</span></td>
+              <td><span class="badge a">${k.alpha||0}</span></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    `;
+  } catch (e) {
+    document.getElementById('content').innerHTML = '<p class="loading">Gagal memuat data. Coba refresh halaman.</p>';
+  }
+}
+
+load();
+setInterval(load, 60000); // refresh otomatis tiap 60 detik
+</script>
+</body>
+</html>
