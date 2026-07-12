@@ -1,13 +1,4 @@
 <?php
-// api/perpus.php
-// GET  /api/perpus.php                    → daftar tap pending (belum diisi judul) + daftar sedang dipinjam
-// GET  /api/perpus.php?riwayat=1          → riwayat peminjaman (sudah dikembalikan)
-// GET  /api/perpus.php?siswa_id=5         → daftar buku yang sedang dipinjam siswa tertentu
-// POST /api/perpus.php                    → catat peminjaman baru { tap_id, judul_buku }
-// POST /api/perpus.php?kembali=1          → tandai buku dikembalikan { id }
-//
-// Catatan: device perpus didaftarkan permanen di tabel device_perpus.
-// absensi.php akan cek tabel ini SEBELUM cek sesi/absen biasa.
 
 require_once '../config.php';
 

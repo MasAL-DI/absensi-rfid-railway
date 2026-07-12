@@ -31,13 +31,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 date_default_timezone_set('Asia/Jakarta');
 
-define('DB_HOST',     getenv('MYSQLHOST')     ?: 'localhost');
-define('DB_USER',     getenv('MYSQLUSER')     ?: 'root');
-define('DB_PASSWORD', getenv('MYSQLPASSWORD') ?: '');
-define('DB_NAME',     getenv('MYSQLDATABASE') ?: 'db_absensi');
-define('DB_PORT',     getenv('MYSQLPORT')     ?: 3306);
+// ===== KONEKSI DATABASE =====
+// Ganti nilai di bawah ini sesuai kredensial dari cPanel InfinityFree Anda
+// (Menu: MySQL Databases). JANGAN pakai getenv() karena InfinityFree
+// tidak mendukung environment variables seperti Railway.
+define('DB_HOST',     'sql104.infinityfree.com'); // ganti sesuai host dari cPanel
+define('DB_USER',     'if0_42393577');              // ganti sesuai username dari cPanel
+define('DB_PASSWORD', 'kGikasvmgY');     // ganti sesuai password yang dibuat
+define('DB_NAME',     'if0_42393577_db_absensi');   // ganti sesuai nama database dari cPanel
+define('DB_PORT',     3306);
 
-define('JWT_SECRET',  getenv('JWT_SECRET')    ?: 'rahasia_absensi_smkn1pabelan');
+define('JWT_SECRET',  'rahasia_absensi_smkn1pabelan'); // boleh diganti dengan string acak lain
 
 function getDB() {
     $conn = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT);
